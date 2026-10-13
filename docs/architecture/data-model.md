@@ -1,6 +1,6 @@
 # DotaFrame — предварительная модель данных
 
-**Версия:** 0.4  
+**Версия:** 0.5  
 **Статус:** Черновик на согласование  
 **Связанная задача:** [#3](https://github.com/qroka/DotaFrame/issues/3)  
 **Связанные требования:** [functional-requirements.md](../requirements/functional-requirements.md)
@@ -18,7 +18,9 @@ erDiagram
     TEAM ||--o{ MATCH_SERIES : "teamAId"
     TEAM ||--o{ MATCH_SERIES : "teamBId"
     MEDIA_ASSET o|--o{ TEAM : "current logo"
-    MEDIA_ASSET o|--o{ POSTER_PROJECT : "historical logo version"
+    MEDIA_ASSET o|--o{ POSTER_PROJECT : "historical logo/portrait versions"
+    HERO ||--o{ GAME_DRAFT : "picks and bans"
+    MATCH_SERIES ||--o{ GAME_DRAFT : "matchSeriesId"
     MATCH_SERIES ||--o{ POSTER_PROJECT : "source matchSeriesId"
     POSTER_TEMPLATE ||--o{ POSTER_PROJECT : "templateId"
 
@@ -46,6 +48,24 @@ erDiagram
       int scoreA "optional"
       int scoreB "optional"
       string status
+    }
+
+    HERO {
+      string id PK
+      string name
+      string portraitAssetId FK "optional"
+    }
+
+    GAME_DRAFT {
+      string id PK
+      string matchSeriesId FK
+      int mapNumber
+      string radiantTeamId FK
+      string direTeamId FK
+      json picksRadiant
+      json picksDire
+      json bansRadiant
+      json bansDire
     }
 
     POSTER_TEMPLATE {
@@ -116,21 +136,33 @@ erDiagram
 
 **Инварианты:** участники существуют в справочнике, `teamAId !== teamBId`; завершённая серия должна иметь корректный счёт и определяемого победителя.
 
-Для MVP **не создаём** сущности карты, драфта и отдельного турнира. Эти данные добавим, когда начнём проектировать графику карт и интеграцию с API. BO1 и технические результаты также отложены.
+Для MVP вводим `GameDraft` только для пиков/банов отдельной карты, **без** сущности полного результата карты, статистики, таймера или фаз Captain's Mode. Отдельного справочника турниров пока нет. BO1 и технические результаты по-прежнему отложены.
 
-### 3.4. PosterTemplate — готовый графический шаблон
+### 3.4. Hero и GameDraft — герои и драфт карты
+
+**Hero**: `id`, `name`, `portraitAssetId` (необязательный). Каталог героев для MVP — статический набор данных приложения, без внешнего API. Файлы портретов можно хранить как неизменяемые версии MediaAsset; при отсутствии — placeholder.
+
+**GameDraft**: `id`, `matchSeriesId`, `mapNumber`, `radiantTeamId`, `direTeamId`, `picksRadiant[]`, `picksDire[]`, `bansRadiant[]`, `bansDire[]`. Число пиков каждой стороны ровно пять для финального драфта, число банов в интерфейсе не привязано к одной версии патча. В пределах одной карты все выбранные и заблокированные герои уникальны.
+
+Номер карты: 1–3 в BO3 и 1–5 в BO5; команды Radiant/Dire — две разные команды из исходной MatchSeries. Для пары `(matchSeriesId, mapNumber)` в локальном хранилище одна запись GameDraft. Эти данные меняются при редактировании драфта, **но старые постеры** от этого не меняются.
+
+Сохранённый PosterProject с `templateId = "draft"` должен фиксировать названия, логотипы обеих команд, Radiant/Dire, номер карты, название турнира, формат серии, списки героев **с именами и версиями портретов**. Только `heroId` в dataSnapshot недостаточно.
+
+Подробно: [требования к генератору драфтов](../requirements/draft-generator.md).
+
+### 3.5. PosterTemplate — готовый графический шаблон
 
 | Поле | Тип | Правило |
 |---|---|---|
 | `id` | string | Стабильный ID шаблона |
-| `type` | string | `announcement` или `series-result` |
+| `type` | string | `announcement`, `series-result` или `draft` |
 | `revision` | string | Версия шаблона для воспроизводимого повторного экспорта |
 | `width` | number | 1080 |
 | `height` | number | 1080 |
 
 Шаблоны входят в код приложения, а не создаются пользователем. При изменении шаблона должна сохраняться возможность повторного экспорта существующих снимков с нужной версией оформления. Точный способ версионирования проверим на архитектурном прототипе.
 
-### 3.5. PosterProject — сохранённая публикация
+### 3.6. PosterProject — сохранённая публикация
 
 | Поле | Тип | Правило |
 |---|---|---|
@@ -149,6 +181,7 @@ erDiagram
 - `startAt`, `timezone`: сохранённые значения даты и времени.
 - `format`: BO3/BO5 и другие поддержанные значения.
 - `scoreA`, `scoreB`, `status`: результат и статус, если они выводятся в шаблоне.
+- Для шаблона `draft`: `mapNumber`, `radiantTeamId`, `direTeamId`, массивы `picksRadiant`, `picksDire`, `bansRadiant`, `bansDire` с историческими именами героев и `portraitAssetId` конкретных версий файлов.
 - Любые другие отображаемые поля, которые будут добавлены в соответствующие шаблоны.
 
 **Механика сохранения:**
@@ -223,13 +256,14 @@ erDiagram
 7. Для заменённого логотипа создаётся новый `MediaAsset`; старый не перезаписывается.
 8. Медиафайлы, используемые хотя бы одним историческим снимком, нельзя удалять.
 9. Если `MatchSeries` была изменена, новая публикация получает актуальные данные; старая остаётся прежней.
-10. Для обеих публикаций MVP размер PNG — 1080 × 1080 пикселей.
+10. Для всех трёх типов публикаций MVP размер PNG — 1080 × 1080 пикселей.
+13. Герои внутри GameDraft не должны повторяться между пиками и банами; номера карт не выходят за формат BO3/BO5.
 11. Для повторяемости изображения нужно сохранять версию шаблона и обеспечивать доступность используемых шрифтов и ресурсов.
 12. Физическое удаление команды или исходной серии не должно делать историческую публикацию нечитаемой. Политику удаления/архивирования согласовать отдельно.
 
 ## 6. Локальное хранение
 
-Для MVP в архитектуре выбран кандидат IndexedDB: отдельные хранилища `teams`, `mediaAssets`, `matchSeries`, `posterProjects`. Шаблоны — конфигурация в исходном коде приложения. До принятия реализации нужно пройти [технические проверки](../research/technical-feasibility.md).
+Для MVP в архитектуре выбран кандидат IndexedDB: отдельные хранилища `teams`, `mediaAssets`, `matchSeries`, `gameDrafts`, `posterProjects`; каталог `heroes` может поставляться как статический набор данных приложения. Шаблоны — конфигурация в исходном коде приложения. До принятия реализации нужно пройти [технические проверки](../research/technical-feasibility.md).
 
 Это **архитектурная гипотеза**, а не утверждённый способ реализации. До разработки следует сделать небольшой прототип сохранения Blob и повторного открытия изображения.
 
