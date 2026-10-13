@@ -92,7 +92,11 @@
 - [Технические проверки](docs/research/technical-feasibility.md)
 - [Задача предпроектного анализа — Issue #3](https://github.com/qroka/DotaFrame/issues/3)
 
-**Figma:** [DotaFrame | SOKRAL](https://www.figma.com/design/ck0P8u0kzEjoqUuylSsxrr) (SOKRAL DESIGN). Файл пока пустой, макеты создаются владельцем проекта.
+## Дизайн в Figma
+
+[**DotaFrame | SOKRAL — дизайн проекта**](https://www.figma.com/design/ck0P8u0kzEjoqUuylSsxrr/DotaFrame-%257C-SOKRAL?node-id=1-7&p=f&t=wgh8mh5RoaxaZUfK-0) — рабочий файл в пространстве **SOKRAL DESIGN**. UX/UI-дизайн, графические шаблоны и прототипирование выполняются до начала разработки приложения.
+
+Задачи и критерии готовности дизайна отслеживаются в GitHub Issues.
 
 ## Статус проекта
 
