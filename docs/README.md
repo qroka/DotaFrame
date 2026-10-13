@@ -47,9 +47,9 @@ DotaFrame — планируемое веб-приложение для созд
 
 ## 4. Figma
 
-Рабочий файл: [DotaFrame | SOKRAL](https://www.figma.com/design/ck0P8u0kzEjoqUuylSsxrr) в пространстве **SOKRAL DESIGN**.
+Рабочий файл: [DotaFrame | SOKRAL](https://www.figma.com/design/ck0P8u0kzEjoqUuylSsxrr/DotaFrame-%257C-SOKRAL?node-id=1-7&p=f&t=wgh8mh5RoaxaZUfK-0) в пространстве **SOKRAL DESIGN**.
 
-Файл создан **пустым**. Экраны, компоненты и дизайн-система не созданы. Описание экранов и рекомендуемая структура страниц приведены в [screen-architecture.md](design/screen-architecture.md).
+Структура Figma-файла оформляется по этапам Research → User Flows → Wireframes → Foundations → Components → Screens → Poster Templates → Prototype. Готовность экранов и компонентов нужно оценивать по фактическим макетам, а не по наличию страниц. Подробные требования изложены в [screen-architecture.md](design/screen-architecture.md).
 
 ## 5. Что ещё не проверено
 
