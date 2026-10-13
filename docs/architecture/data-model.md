@@ -19,7 +19,7 @@ erDiagram
     TEAM ||--o{ MATCH_SERIES : "teamBId"
     MEDIA_ASSET o|--o{ TEAM : "current logo"
     MEDIA_ASSET o|--o{ POSTER_PROJECT : "historical logo/portrait versions"
-    HERO ||--o{ GAME_DRAFT : "picks and bans"
+    HERO }o--o{ GAME_DRAFT : "appears in picks/bans"
     MATCH_SERIES ||--o{ GAME_DRAFT : "matchSeriesId"
     MATCH_SERIES ||--o{ POSTER_PROJECT : "source matchSeriesId"
     POSTER_TEMPLATE ||--o{ POSTER_PROJECT : "templateId"
