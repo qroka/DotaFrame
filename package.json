@@ -1,0 +1,32 @@
+{
+  "name": "dotaframe",
+  "version": "1.0.0",
+  "description": "**DotaFrame** — веб-приложение для создания графических публикаций о киберспортивных матчах Dota 2 на основе готовых шаблонов.",
+  "main": "index.js",
+  "type": "module",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "dev": "vite"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/qroka/DotaFrame.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/qroka/DotaFrame/issues"
+  },
+  "homepage": "https://github.com/qroka/DotaFrame#readme",
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.3",
+    "tailwindcss": "^4.3.3",
+    "vite": "^8.3.4"
+  },
+  "dependencies": {
+    "html-to-image": "^1.11.13"
+  }
+}

@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta 
+        name="viewport" 
+        content="width=device-width, initial-scale=1.0"
+    >
+    <title>DotaFrame</title>
+</head>
+
+<body>
+    <main class="flex gap-12 min-h-screen bg-zinc-950 p-8">
+        <div class="flex flex-col gap-4">
+            <h1 class="text-2xl font-bold text-white">
+                DotaFrame
+            </h1>
+            <div class="flex flex-col gap-2">
+                <label 
+                    for="input-team-a" 
+                    class="block text-white"
+                >
+                    Название первой команды
+                </label>
+                <input
+                    id="input-team-a" 
+                    type="text"
+                    placeholder="Введите название команды"
+                    class="bg-slate-700 text-white p-3 w-100"
+                >
+            </div>
+                    <div class="flex flex-col gap-2">
+                <label for="input-team-b" class="block text-white">
+                    Название второй команды
+                </label>
+                <input
+                    id="input-team-b" 
+                    type="text"
+                    placeholder="Введите название команды"
+                    class="bg-slate-700 text-white p-3 w-100"
+                >
+            </div>
+            <div class="flex flex-col gap-2">
+                <label 
+                    for="input-tournament" 
+                    class="block text-white"
+                >
+                    Название турнира
+                </label>
+                <input
+                    id="input-tournament" 
+                    type="text"
+                    placeholder="Введите название турнира"
+                    class="bg-slate-700 text-white p-3 w-100"
+                >
+            </div>
+            <div class="flex flex-col gap-2">
+                <label 
+                    for="input-format" 
+                    class="block text-white"
+                >
+                    Формат матча
+                </label>
+                    <select 
+                        id="input-format"
+                        class="bg-slate-700 text-white p-3 w-100"
+                    >
+                        <option value="BO1">BO1</option>
+                        <option value="BO2">BO2</option>
+                        <option value="BO3" selected>BO3</option>
+                        <option value="BO5">BO5</option>                                                            
+                    </select>
+            </div>
+            <div class="flex flex-col gap-2">
+                <label 
+                    for="input-time" 
+                    class="block text-white"
+                >
+                    Время начала матча
+                </label>
+                <input
+                    id="input-time" 
+                    type="time"
+                    value="18:00"
+                    class="bg-slate-700 text-white p-3 w-100"
+                >
+            </div>   
+            <button id="download-png" 
+                    type="button" 
+                    class="bg-blue-600 hover:bg-blue-800 text-white p-3 w-100 cursor-pointer"
+            >
+            Экспортировать в PNG
+            </button>                        
+        </div>
+        <div class="w-135 h-135 overflow-hidden shrink-0">
+            <article
+                id="poster"
+                class="w-270 h-270 scale-50 origin-top-left bg-slate-800 text-white flex flex-col items-center text-center p-12 justify-between"
+            >
+                <header class="flex justify-between w-full text-[30px]">
+                    <p id="title">MATCH ANNOUNCEMENT</p>
+                    <p id="name" class="opacity-50">SOKRAL DESIGN</p>
+                </header>
+
+                <div class="flex flex-col w-full text-[48px]">
+                    <p id="team-a" class="opacity-50 line-clamp-2 wrap-anywhere">[Первая команда]</p>
+                    <p class="font-semibold text-[96px]">VS</p>
+                    <p id="team-b" class="opacity-50 line-clamp-2 wrap-anywhere">[Вторая команда]</p>
+
+                </div>
+                    
+                <footer class="flex justify-between items-end w-full text-[30px]">
+                    <div class="flex gap-3">
+                        <p id="format">BO3</p>
+                        <p>·</p>
+                        <p id="time">18:00</p>
+                    </div>
+
+                    <p id="tournament" class="opacity-50 max-w-[60%] line-clamp-2 wrap-anywhere text-right">[Название турнира]</p>
+                </footer>                
+
+
+            </article>
+
+        </div>
+    </main>
+    <script type="module" src="/src/main.js"></script>
+</body>
+
+</html>
