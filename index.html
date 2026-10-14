@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DotaFrame — первая карточка</title>
+</head>
+<body class="min-h-screen bg-[#080a0f] text-[#f4f5f8] antialiased">
+  <main class="mx-auto max-w-[1480px] px-4 py-8 lg:px-10 lg:py-12">
+    <header class="mb-8 border-b border-[#272a33] pb-7">
+      <p class="mb-2 text-xs font-semibold tracking-[0.24em] text-[#8290aa]">DOTAFRAME / ПЕРВЫЙ ПРОТОТИП</p>
+      <h1 class="text-3xl font-bold tracking-tight sm:text-4xl">Генератор анонса матча</h1>
+      <p class="mt-2 max-w-[800px] text-sm leading-6 text-[#a3adbf]">Заполни данные — карточка справа обновится автоматически. Затем скачай PNG 1080 × 1080.</p>
+    </header>
+
+    <div class="grid gap-8 xl:grid-cols-[minmax(300px,410px)_minmax(0,1fr)]">
+      <section aria-labelledby="data-title" class="self-start rounded-2xl border border-[#2a2d38] bg-[#101218] p-5 sm:p-7">
+        <h2 id="data-title" class="mb-1 text-xl font-bold">Данные матча</h2>
+        <p class="mb-6 text-sm text-[#929ba9]">Пока данные сохраняются только в открытой вкладке.</p>
+        <form id="match-form" class="space-y-5" autocomplete="off">
+          <div><label for="team-a" class="mb-2 block text-sm font-medium">Команда A</label><input id="team-a" type="text" maxlength="60" value="TEAM SPIRIT" class="w-full rounded-lg border border-[#303745] bg-[#191e28] px-4 py-3 text-sm text-white outline-none focus:border-[#7d9bd2]" /></div>
+<div><label for="team-b" class="mb-2 block text-sm font-medium">Команда B</label><input id="team-b" type="text" maxlength="60" value="TEAM LIQUID" class="w-full rounded-lg border border-[#303745] bg-[#191e28] px-4 py-3 text-sm text-white outline-none focus:border-[#7d9bd2]" /></div>
+<div><label for="tournament" class="mb-2 block text-sm font-medium">Турнир</label><input id="tournament" type="text" maxlength="80" value="THE INTERNATIONAL" class="w-full rounded-lg border border-[#303745] bg-[#191e28] px-4 py-3 text-sm text-white outline-none focus:border-[#7d9bd2]" /></div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label for="match-date" class="mb-2 block text-sm font-medium">Дата</label>
+              <input id="match-date" type="date" value="2026-10-14" class="min-w-0 w-full rounded-lg border border-[#303745] bg-[#191e28] px-4 py-3 text-sm text-white outline-none focus:border-[#7d9bd2]" />
+            </div>
+            <div>
+              <label for="match-time" class="mb-2 block text-sm font-medium">Время</label>
+              <input id="match-time" type="time" value="18:00" class="min-w-0 w-full rounded-lg border border-[#303745] bg-[#191e28] px-4 py-3 text-sm text-white outline-none focus:border-[#7d9bd2]" />
+            </div>
+          </div>
+          <div>
+            <label for="format" class="mb-2 block text-sm font-medium">Формат серии</label>
+            <select id="format" class="w-full rounded-lg border border-[#303745] bg-[#191e28] px-4 py-3 text-sm text-white outline-none focus:border-[#7d9bd2]">
+              <option value="BO3">BO3</option>
+              <option value="BO5">BO5</option>
+            </select>
+          </div>
+        </form>
+        <div class="mt-7 border-t border-[#2a2d38] pt-6">
+          <button id="export-button" type="button" class="w-full rounded-lg bg-[#e7edf9] px-5 py-3.5 text-sm font-bold text-[#101a2a] transition hover:bg-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white disabled:opacity-60">
+            Скачать PNG 1080 × 1080
+          </button>
+          <p id="export-status" role="status" aria-live="polite" class="mt-3 min-h-5 text-sm text-[#9ba9bd]"></p>
+        </div>
+      </section>
+
+      <section aria-labelledby="preview-title" class="min-w-0">
+        <div class="mb-4 flex flex-wrap items-baseline justify-between gap-2">
+          <h2 id="preview-title" class="text-xl font-bold">Предпросмотр</h2>
+          <span class="text-sm text-[#8c96a8]">Оригинал: 1080 × 1080 px</span>
+        </div>
+        <div class="rounded-2xl border border-[#2a2d38] bg-[#101218] p-3 sm:p-6">
+          <!-- Уменьшается только предварительный просмотр. Экспорт #poster всегда 1080 x 1080. -->
+          <div id="preview-stage" class="relative mx-auto aspect-square w-full max-w-[650px] overflow-hidden rounded-lg">
+            <div id="preview-scale" class="absolute top-0 left-0 h-[1080px] w-[1080px]">
+              <article id="poster" class="flex h-[1080px] w-[1080px] flex-col justify-between bg-[#1b263c] px-[100px] py-[94px] text-[#edf2ff]">
+                <p class="text-center text-[26px] font-semibold tracking-[0.13em] text-[#c1ccdd]">MATCH ANNOUNCEMENT</p>
+                <div class="flex flex-1 flex-col items-center justify-center gap-[34px] text-center">
+                  <p id="poster-team-a" class="max-w-full break-words text-[54px] font-semibold uppercase leading-tight">TEAM SPIRIT</p>
+                  <p class="text-[78px] font-extrabold">VS</p>
+                  <p id="poster-team-b" class="max-w-full break-words text-[54px] font-semibold uppercase leading-tight">TEAM LIQUID</p>
+                </div>
+                <div class="text-center">
+                  <p id="poster-time" class="text-[32px] font-semibold">BO3 · 18:00</p>
+                  <p id="poster-date" class="mt-[16px] text-[24px] text-[#c1ccdd]">14.10.2026</p>
+                  <p id="poster-tournament" class="mt-[26px] break-words text-[25px] font-medium uppercase tracking-[0.08em] text-[#c1ccdd]">THE INTERNATIONAL</p>
+                </div>
+              </article>
+            </div>
+          </div>
+          <p class="mt-4 text-center text-sm text-[#8c96a8]">На первом этапе используем текст без логотипов. Загрузка изображений — следующий шаг.</p>
+        </div>
+      </section>
+    </div>
+  </main>
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
