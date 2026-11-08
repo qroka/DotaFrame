@@ -43,8 +43,8 @@ downloadButton.addEventListener('click', function () {
     console.log('Начинаем экспорт');
 
     toPng(poster, {
-        width: 1080,
-        height: 1080,
+        width: 1280,
+        height: 1280,
         pixelRatio: 1,
         style: {
             scale: 1,
