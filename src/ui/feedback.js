@@ -141,7 +141,7 @@ export function openModal({ title, description, content, footer, width = 520, on
   document.body.append(overlay);
   requestAnimationFrame(() => {
     const auto = dialog.querySelector('[autofocus]') ?? body.querySelector(FOCUSABLE) ?? dialog.querySelector(FOCUSABLE);
-    auto?.focus();
+    if (!dialog.contains(document.activeElement) || document.activeElement === dialog) auto?.focus();
   });
   return api;
 }

@@ -252,6 +252,8 @@ export function teamAvatar(team, size = 28) {
     style: { width: `${size}px`, height: `${size}px` },
   });
   const initials = (team?.shortName || team?.name || '?').replace(/^team\s+/i, '').slice(0, 3).toUpperCase();
+  box.style.fontSize = size < 30 ? '8px' : '10px';
+  box.style.letterSpacing = '-0.02em';
   box.textContent = initials;
   if (team?.logoAssetId) {
     assetUrl(team.logoAssetId).then((url) => {
