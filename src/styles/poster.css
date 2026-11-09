@@ -1,0 +1,191 @@
+/*
+ * Poster base styles. Everything is scoped under .df-poster and expressed in
+ * base-frame pixels (1080 × 1080). Plain CSS (not Tailwind utilities) so that
+ * templates are independent from the app UI styles and export identically.
+ */
+.df-poster {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  box-sizing: border-box;
+  background: #0b0b0d;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: geometricPrecision;
+  font-kerning: normal;
+  contain: layout paint;
+}
+.df-poster *,
+.df-poster *::before,
+.df-poster *::after {
+  box-sizing: border-box;
+}
+.df-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.df-bg {
+  overflow: hidden;
+}
+.df-bg-photo {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.df-player {
+  inset: auto;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+.df-player img {
+  max-width: none;
+  height: 100%;
+  width: auto;
+  display: block;
+  object-fit: contain;
+  object-position: bottom center;
+}
+.df-content {
+  position: absolute;
+  inset: 0;
+}
+.df-logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.df-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+.df-logo-ph {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  opacity: 0.85;
+}
+.df-logo-ph svg {
+  position: absolute;
+  inset: 0;
+}
+.df-logo-ph-text {
+  position: relative;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  font-style: normal;
+  line-height: 1;
+}
+.df-fit {
+  /* Clip (not scroll) with a margin so italic overhang and descenders of trimmed
+     text stay visible; fitting is measured on layout width, not ink. */
+  overflow: clip;
+  overflow-clip-margin: 0.3em;
+  display: block;
+}
+.df-fit-inner {
+  display: inline;
+}
+.df-socials {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.df-trim {
+  text-box-trim: trim-both;
+  text-box-edge: cap alphabetic;
+}
+/* Editor-only overflow marker (never present in export: attribute is stripped). */
+.df-poster [data-overflow='true'] {
+  outline: 3px dashed #ff3b30;
+  outline-offset: 2px;
+}
+
+/* ---------- Draft: hero tiles ---------- */
+.df-hero {
+  position: relative;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.06);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.df-hero-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 20%;
+  display: block;
+}
+.df-hero-initials {
+  position: relative;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: 0.02em;
+}
+.df-hero-empty {
+  font-weight: 700;
+  line-height: 1;
+  opacity: 0.28;
+}
+.df-hero--empty {
+  background: rgba(255, 255, 255, 0.04);
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.1);
+}
+.df-hero-name {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 22px 8px 8px;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.82), rgba(0, 0, 0, 0));
+  color: #fff;
+}
+.df-hero--ban .df-hero-img {
+  filter: grayscale(100%) brightness(70%);
+}
+.df-hero--ban .df-hero-initials {
+  filter: grayscale(100%);
+  opacity: 0.9;
+}
+.df-hero-ban-shade {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.22);
+}
+.df-hero-strike {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* ---------- Matchday rows ---------- */
+.df-md-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  background: rgba(8, 8, 10, 0.52);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.df-md-row::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 5px;
+  background: var(--accent);
+}

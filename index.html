@@ -1,153 +1,17 @@
-<!DOCTYPE html>
-<html lang="ru">
-
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!doctype html>
+<html lang="ru" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="description" content="DotaFrame — генератор графики для киберспортивных публикаций по Dota 2: анонсы, результаты, афиши игрового дня и драфты." />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>DotaFrame</title>
-</head>
-
-<body>
-    <main class="flex gap-12 min-h-screen bg-zinc-950 p-8">
-        <div class="flex flex-col gap-4">
-                <h1 class="text-2xl font-bold text-white">
-                    DotaFrame
-                </h1>
-                <div class="flex flex-col gap-2">
-                    <label for="input-team-a" class="block text-white">
-                        Название первой команды
-                    </label>
-                    <input id="input-team-a" type="text" placeholder="Введите название команды"
-                        class="bg-slate-700 text-white p-3 w-60">
-                </div>
-                <div class="flex flex-col gap-2">
-                    <label for="input-team-b" class="block text-white">
-                        Название второй команды
-                    </label>
-                    <input id="input-team-b" type="text" placeholder="Введите название команды"
-                        class="bg-slate-700 text-white p-3 w-60">
-                </div>
-                <div class="flex flex-col gap-2">
-                    <label for="input-tournament" class="block text-white">
-                        Название турнира
-                    </label>
-                    <input id="input-tournament" type="text" placeholder="Введите название турнира"
-                        class="bg-slate-700 text-white p-3 w-60">
-                </div>
-                <div class="flex flex-col gap-2">
-                    <label for="input-format" class="block text-white">
-                        Формат матча
-                    </label>
-                    <select id="input-format" class="bg-slate-700 text-white p-3 w-60">
-                        <option value="BO1">BO1</option>
-                        <option value="BO2">BO2</option>
-                        <option value="BO3" selected>BO3</option>
-                        <option value="BO5">BO5</option>
-                    </select>
-                </div>
-                <div class="flex flex-col gap-2">
-                    <label for="input-time" class="block text-white">
-                        Время начала матча
-                    </label>
-                    <input id="input-time" type="time" value="18:00" class="bg-slate-700 text-white p-3 w-60">
-                </div>
-                <div class="flex flex-col gap-2">
-                    <label for="input-logo-team-a" class="block text-white">
-                        Логотип первой команды
-                    </label>
-                    <input id="input-logo-team-a" type="file" accept="image/png" class="bg-slate-700 text-white p-3 w-60">
-                </div>
-                <button id="remove-logo-a" type="button"
-                    class="bg-red-600 hover:bg-red-800 text-white p-3 w-60 cursor-pointer hidden">
-                    Удалить логотип первой команды
-                </button>
-                <div class="flex flex-col gap-2">
-                    <label for="input-logo-team-b" class="block text-white">
-                        Логотип второй команды
-                    </label>
-                    <input id="input-logo-team-b" type="file" accept="image/png" class="bg-slate-700 text-white p-3 w-60">
-                </div>
-                <button id="remove-logo-b" type="button"
-                    class="bg-red-600 hover:bg-red-800 text-white p-3 w-60 cursor-pointer hidden">
-                    Удалить логотип второй команды
-                </button>
-                <button id="download-png" type="button"
-                    class="bg-blue-600 hover:bg-blue-800 text-white p-3 w-60 cursor-pointer">
-                    Экспортировать в PNG
-                </button>
-            </div>
-
-
-
-        <div class="w-160 h-160 overflow-hidden shrink-0">
-
-            <!-- ШАБЛОН -->
-            <!-- ШАБЛОН -->
-            <!-- ШАБЛОН -->
-
-            <article id="poster"
-                class="w-320 h-320 scale-50 origin-top-left bg-slate-800 text-white flex flex-col items-start text-center p-15 justify-between">
-                <header class="flex justify-between w-full">
-                    <div class="flex flex-col items-start gap-6 uppercase italic">
-                        <p id="title" class="text-[200px] text-trim roboto-flex-bold">MATCH</p>
-                        <p id="enemy-team" class="text-[64px] text-trim roboto-flex-regular">VS Natus Vincere </p>
-                    </div>
-                    <div class="flex flex-col items-start gap-6 lowercase italic">
-                        <p id="telegram-url" class="text-[32px] text-trim roboto-flex-regular">t.me/vanishoid</p>
-                        <p id="twitch-url" class="text-[32px] text-trim roboto-flex-regular">t.tv/vanilll1</p>
-                    </div>
-                </header>
-
-                <div class="flex flex-col gap-12 items-center text-[48px]">
-                    <div class="w-64 h-64 flex">
-
-                        <svg id="placeholder-logo-a" viewBox="0 0 512 512" class="fill-white" role="img"
-                            xmlns="http://www.w3.org/2000/svg">
-                            <path
-                                d="M461.999 89.2382V69.6191C461.999 64.2043 457.615 59.8096 452.19 59.8096L412.952 59.8096C409.067 59.8096 405.948 60.0647 403.142 60.7906V59.8096C403.142 54.3948 398.757 50.0001 393.333 50.0001L334.476 50.0001C317.466 50.0001 311.316 59.6527 307.706 69.6191L299.74 69.6191C297.455 66.5684 295.238 62.6152 295.238 59.8096C295.238 54.3948 290.853 50.0001 285.428 50.0001L216.762 50.0001C211.749 50.0001 207.541 53.8553 207.001 58.8287C206.776 60.8887 202.607 69.6191 196.122 69.6191L169.244 69.6191C168.607 68.8638 167.685 67.461 166.89 65.6659C165.321 62.1051 161.789 59.8096 157.905 59.8096L59.8095 59.8096C54.3849 59.8096 50 64.2043 50 69.6191L50 148.095C50 175.787 58.0928 210.847 59.7997 217.919L59.7212 232.781L53.0704 239.069C51.1085 240.913 50 243.493 50 246.19L50 285.428C50 288.038 51.03 290.529 52.8742 292.364L59.8095 299.299L59.8095 342.696L50.5101 370.614C49.9117 372.39 49.843 374.283 50.3041 376.098L59.4171 412.569L50.5199 439.29C49.5095 442.282 50.0196 445.578 51.8638 448.129C53.6982 450.679 56.6607 452.19 59.8095 452.19L197.143 452.19C199.752 452.19 202.244 451.16 204.078 449.316L204.961 448.433C210.17 455.555 217.419 461.999 226.571 461.999L256 461.999C263.219 461.999 269.537 458.851 275.099 456.065C278.905 454.152 282.839 452.19 285.428 452.19L334.476 452.19C337.085 452.19 339.577 451.16 341.411 449.316L343.795 446.932C344.413 447.717 345.001 448.492 345.58 449.237C350.397 455.515 355.37 461.999 363.904 461.999L412.952 461.999C418.376 461.999 422.761 457.615 422.761 452.19V445.137L449.816 451.886C452.749 452.641 455.859 451.955 458.252 450.081C460.636 448.217 462.019 445.343 461.999 442.302C461.99 441.341 461.381 345.09 461.999 295.356C462.029 292.707 460.989 290.166 459.125 288.293L452.19 281.367L452.19 236.381C452.19 233.781 451.16 231.28 449.316 229.445L444.509 224.639L450.444 212.769L459.125 204.088C460.969 202.244 461.999 199.742 461.999 197.143L461.852 147.997C461.852 147.203 461.754 146.418 461.568 145.643L452.778 110.015L460.969 93.6328C461.646 92.2693 461.999 90.7586 461.999 89.2382ZM345.158 128.476L375.018 148.095L365.062 206.952L285.428 148.095L345.158 128.476ZM157.905 383.523L118.667 354.095L138.286 285.428L216.762 363.904L157.905 383.523ZM365.866 373.714L320.085 373.714L118.667 137.56L155.285 128.476L393.333 310.129L365.866 373.714Z" />
-                        </svg>
-                        <img id="logo-team-a" alt="Логотип первой команды" class="hidden w-full h-full object-contain">
-
-                    </div>
-                    <svg id="krestik" width="76" height="76" viewBox="0 0 76 76" class="fill-white"
-                        xmlns="http://www.w3.org/2000/svg">
-                        <path
-                            d="M76 2.84082L40.8408 38L76 73.1592L73.1592 76L38 40.8408L2.84082 76L0 73.1592L35.1592 38L0 2.84082L2.84082 0L38 35.1592L73.1592 0L76 2.84082Z" />
-                    </svg>
-
-                    <div class="w-64 h-64 flex">
-
-                        <svg id="placeholder-logo-b" viewBox="0 0 512 512" class="fill-white" role="img"
-                            xmlns="http://www.w3.org/2000/svg">
-                            <path
-                                d="M461.999 89.2382V69.6191C461.999 64.2043 457.615 59.8096 452.19 59.8096L412.952 59.8096C409.067 59.8096 405.948 60.0647 403.142 60.7906V59.8096C403.142 54.3948 398.757 50.0001 393.333 50.0001L334.476 50.0001C317.466 50.0001 311.316 59.6527 307.706 69.6191L299.74 69.6191C297.455 66.5684 295.238 62.6152 295.238 59.8096C295.238 54.3948 290.853 50.0001 285.428 50.0001L216.762 50.0001C211.749 50.0001 207.541 53.8553 207.001 58.8287C206.776 60.8887 202.607 69.6191 196.122 69.6191L169.244 69.6191C168.607 68.8638 167.685 67.461 166.89 65.6659C165.321 62.1051 161.789 59.8096 157.905 59.8096L59.8095 59.8096C54.3849 59.8096 50 64.2043 50 69.6191L50 148.095C50 175.787 58.0928 210.847 59.7997 217.919L59.7212 232.781L53.0704 239.069C51.1085 240.913 50 243.493 50 246.19L50 285.428C50 288.038 51.03 290.529 52.8742 292.364L59.8095 299.299L59.8095 342.696L50.5101 370.614C49.9117 372.39 49.843 374.283 50.3041 376.098L59.4171 412.569L50.5199 439.29C49.5095 442.282 50.0196 445.578 51.8638 448.129C53.6982 450.679 56.6607 452.19 59.8095 452.19L197.143 452.19C199.752 452.19 202.244 451.16 204.078 449.316L204.961 448.433C210.17 455.555 217.419 461.999 226.571 461.999L256 461.999C263.219 461.999 269.537 458.851 275.099 456.065C278.905 454.152 282.839 452.19 285.428 452.19L334.476 452.19C337.085 452.19 339.577 451.16 341.411 449.316L343.795 446.932C344.413 447.717 345.001 448.492 345.58 449.237C350.397 455.515 355.37 461.999 363.904 461.999L412.952 461.999C418.376 461.999 422.761 457.615 422.761 452.19V445.137L449.816 451.886C452.749 452.641 455.859 451.955 458.252 450.081C460.636 448.217 462.019 445.343 461.999 442.302C461.99 441.341 461.381 345.09 461.999 295.356C462.029 292.707 460.989 290.166 459.125 288.293L452.19 281.367L452.19 236.381C452.19 233.781 451.16 231.28 449.316 229.445L444.509 224.639L450.444 212.769L459.125 204.088C460.969 202.244 461.999 199.742 461.999 197.143L461.852 147.997C461.852 147.203 461.754 146.418 461.568 145.643L452.778 110.015L460.969 93.6328C461.646 92.2693 461.999 90.7586 461.999 89.2382ZM345.158 128.476L375.018 148.095L365.062 206.952L285.428 148.095L345.158 128.476ZM157.905 383.523L118.667 354.095L138.286 285.428L216.762 363.904L157.905 383.523ZM365.866 373.714L320.085 373.714L118.667 137.56L155.285 128.476L393.333 310.129L365.866 373.714Z" />
-                        </svg>
-
-
-                        <img id="logo-team-b" alt="Логотип второй команды" class="hidden w-full h-full object-contain">
-
-                    </div>
-                </div>
-
-                <footer class="flex justify-between items-end w-full text-[30px]">
-                    <div class="flex flex-col items-start gap-6 lowercase italic">
-                        <p id="format" class="text-[32px] text-trim roboto-flex-medium uppercase">BEST OF 3</p>
-                        <p id="tournament" class="text-[32px] text-trim roboto-flex-medium uppercase">EPL MASTERS 3</p>
-                    </div>
-
-                    <p id="tournament" class="text-[24px] text-trim roboto-flex-regular uppercase">@SOKRALDESIGN</p>
-                </footer>
-
-
-            </article>
-
-            <!-- ШАБЛОН -->
-            <!-- ШАБЛОН -->
-            <!-- ШАБЛОН -->
-
-        </div>
-    </main>
+  </head>
+  <body>
+    <div id="app" class="h-full">
+      <noscript>DotaFrame требует JavaScript.</noscript>
+    </div>
     <script type="module" src="/src/main.js"></script>
-</body>
-
+  </body>
 </html>

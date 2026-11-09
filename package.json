@@ -1,14 +1,16 @@
 {
   "name": "dotaframe",
   "version": "1.0.0",
-  "description": "**DotaFrame** — веб-приложение для создания графических публикаций о киберспортивных матчах Dota 2 на основе готовых шаблонов.",
-  "main": "index.js",
+  "description": "DotaFrame — генератор киберспортивной графики Dota 2: анонсы, результаты, афиши игрового дня и драфты.",
   "type": "module",
-  "directories": {
-    "doc": "docs"
-  },
   "scripts": {
-    "dev": "vite"
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:unit": "vitest run",
+    "test:e2e": "playwright test",
+    "test:all": "vitest run && playwright test"
   },
   "repository": {
     "type": "git",
@@ -22,11 +24,19 @@
   },
   "homepage": "https://github.com/qroka/DotaFrame#readme",
   "devDependencies": {
+    "@playwright/test": "^1.56.1",
     "@tailwindcss/vite": "^4.3.3",
+    "fake-indexeddb": "^6.0.1",
     "tailwindcss": "^4.3.3",
-    "vite": "^8.3.4"
+    "vite": "^8.3.4",
+    "vitest": "^3.2.4"
   },
   "dependencies": {
+    "@fontsource-variable/inter": "^5.2.8",
+    "@fontsource-variable/oswald": "^5.2.8",
+    "@fontsource-variable/roboto-flex": "^5.2.8",
+    "@fontsource-variable/unbounded": "^5.2.8",
     "html-to-image": "^1.11.13"
-  }
+  },
+  "private": true
 }
