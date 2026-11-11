@@ -5,7 +5,7 @@
 import { h } from '../../core/dom.js';
 import { defineTemplate } from '../registry.js';
 import { commonSettings, ELEMENTS } from './settings.js';
-import { baseLayers, playerLayer, posterRoot, fitText, socialsBlock, handleBlock, dateLine, tournamentLine, formatLong, perspectiveTeams, displayName } from './primitives.js';
+import { baseLayers, playerLayer, posterRoot, fitText, socialsBlock, handleBlock, dateLine, perspectiveTeams, displayName } from './primitives.js';
 
 /** Validation shared by WIN and LOSE. `outcome`: 'win' | 'lose'. */
 export function validateOutcome(data, outcome) {
@@ -62,51 +62,60 @@ export function createOutcomeTemplate({ id, type, order, word, name, description
       const t = data.texts ?? {};
       const { them, usScore, themScore } = perspectiveTeams(data);
       const right = style.align === 'right';
-      const P = 60;
+      const P = 51;
+      const isLose = type === 'lose';
       const hasScore = style.showScore && usScore !== null && usScore !== undefined && themScore !== null && themScore !== undefined;
 
-      // Top captions: tournament/format on the aligned side, socials opposite.
-      const meta = [tournamentLine(ctx), style.show.format ? formatLong(data.format) : '', style.show.date ? dateLine(ctx) : ''].filter(Boolean);
+      // The supplied system keeps match metadata top-left and channel links top-right.
+      const meta = [style.show.date ? dateLine(ctx) : '', style.show.tournament ? data.tournament : '', style.show.stage ? data.stage : ''].filter(Boolean);
       const metaBlock = h(
         'div',
-        { style: { position: 'absolute', top: `${P}px`, [right ? 'right' : 'left']: `${P}px`, display: 'flex', flexDirection: 'column', gap: '14px', alignItems: right ? 'flex-end' : 'flex-start' } },
-        meta.map((line, i) => fitText(line, { ctx, size: i === 0 ? 30 : 24, min: 14, width: 520, weight: i === 0 ? 700 : 500, align: right ? 'right' : 'left', label: 'Подпись', className: 'df-trim', letterSpacing: '0.03em' })),
+        { style: { position: 'absolute', top: `${P}px`, left: `${P}px`, display: 'flex', flexDirection: 'column', gap: '20px', alignItems: 'flex-start' } },
+        meta.map((line, i) => fitText(line, { ctx, size: i === 0 ? 41 : 27, min: 14, width: 520, weight: i === 0 ? 700 : 500, align: 'left', label: 'Подпись', className: 'df-trim' })),
       );
       const social = h(
         'div',
-        { style: { position: 'absolute', top: `${P}px`, [right ? 'left' : 'right']: `${P}px`, display: 'flex', flexDirection: 'column', gap: '14px', alignItems: right ? 'flex-start' : 'flex-end' } },
-        socialsBlock(ctx, { size: 24, align: right ? 'left' : 'right' }),
-        handleBlock(ctx, { size: 20, align: right ? 'left' : 'right' }),
+        { style: { position: 'absolute', top: `${P}px`, right: `${P}px`, display: 'flex', flexDirection: 'column', alignItems: 'flex-end' } },
+        socialsBlock(ctx, { size: 27, align: 'right' }),
       );
+      if (social.firstChild) social.firstChild.style.gap = '20px';
 
       // Bottom block: opponent caption → huge word + score on one baseline.
-      const word = fitText(t.title || type.toUpperCase(), { ctx, role: 'head', size: 360, min: 120, width: hasScore ? 640 : 960, label: 'Заголовок', className: 'df-trim', align: right ? 'right' : 'left', lineHeight: '0.8' });
+      const blockLeft = isLose ? 133 : 51;
+      const blockWidth = isLose ? 896 : 878;
+      const wordWidth = isLose ? 621 : 603;
+      const word = fitText(t.title || type.toUpperCase(), { ctx, role: 'head', size: isLose ? 284 : 338, min: 120, width: hasScore ? wordWidth : blockWidth, label: 'Заголовок', className: 'df-trim', align: isLose ? 'right' : 'left', lineHeight: '0.8' });
       const score = hasScore
-        ? fitText(`${usScore}:${themScore}`, { ctx, role: 'head', size: 210, min: 90, width: 300, label: 'Счёт', className: 'df-trim', align: right ? 'left' : 'right', lineHeight: '0.8' })
+        ? fitText(`${usScore}:${themScore}`, { ctx, role: 'head', size: 186, min: 80, width: 255, label: 'Счёт', className: 'df-trim', align: isLose ? 'left' : 'right', lineHeight: '0.8' })
         : null;
       if (score) score.style.color = style.accent;
       const opponent = fitText(`${t.vsPrefix ? `${t.vsPrefix} ` : ''}${displayName(them, style.useShortNames)}`, {
         ctx,
         size: 54,
         min: 24,
-        width: 960,
-        weight: 700,
+        width: blockWidth,
+        weight: 500,
         label: 'Соперник',
         className: 'df-trim',
-        align: right ? 'right' : 'left',
+        align: isLose ? 'right' : 'left',
       });
-      const note = t.note ? fitText(t.note, { ctx, size: 26, min: 14, width: 960, weight: 500, label: 'Подпись', align: right ? 'right' : 'left', className: 'df-trim' }) : null;
+      const note = t.note ? fitText(t.note, { ctx, size: 27, min: 14, width: blockWidth, weight: 500, label: 'Подпись', align: isLose ? 'right' : 'left', className: 'df-trim' }) : null;
 
-      const row = h('div', { style: { display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', flexDirection: right ? 'row-reverse' : 'row', width: '960px', gap: '20px' } }, word, score);
+      const row = h('div', { style: { display: 'flex', alignItems: 'flex-end', width: `${blockWidth}px`, gap: '20px' } }, isLose ? score : word, isLose ? word : score);
       const bottom = h(
         'div',
-        { style: { position: 'absolute', left: `${P}px`, right: `${P}px`, bottom: `${P}px`, display: 'flex', flexDirection: 'column', gap: '34px', alignItems: right ? 'flex-end' : 'flex-start' } },
+        { style: { position: 'absolute', left: `${blockLeft}px`, bottom: `${P}px`, width: `${blockWidth}px`, display: 'flex', flexDirection: 'column', gap: '20px', alignItems: isLose ? 'flex-end' : 'flex-start' } },
         note,
         opponent,
         row,
       );
+      const handle = h(
+        'div',
+        { style: { position: 'absolute', bottom: '17px', [isLose ? 'right' : 'left']: isLose ? '73px' : '84px' } },
+        handleBlock(ctx, { size: 20, align: isLose ? 'right' : 'left' }) ?? h('div'),
+      );
 
-      return posterRoot(ctx, `tpl-${type}`, ...baseLayers(ctx), playerLayer(ctx, { anchor: 'center', height: 1000 }), h('div', { class: 'df-content' }, metaBlock, social, bottom));
+      return posterRoot(ctx, `tpl-${type}`, ...baseLayers(ctx), playerLayer(ctx, { anchor: 'center', height: 1000 }), h('div', { class: 'df-content' }, metaBlock, social, bottom, handle));
     },
   });
 }

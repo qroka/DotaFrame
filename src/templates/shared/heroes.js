@@ -3,6 +3,7 @@
  * placeholder with initials tinted by primary attribute; empty slot for null.
  */
 import { h, s } from '../../core/dom.js';
+import { heroPortraitUrl } from '../../data/heroes.js';
 import { fitText } from './primitives.js';
 
 export const ATTR_COLORS = {
@@ -35,7 +36,7 @@ export function heroTile(ctx, hero, { width, height, banned = false, showName = 
     box.append(h('span', { class: 'df-hero-empty', style: { fontSize: `${Math.round(height * 0.32)}px` } }, '?'));
     return box;
   }
-  const src = hero.portraitAssetId ? ctx.url(hero.portraitAssetId) : null;
+  const src = (hero.portraitAssetId ? ctx.url(hero.portraitAssetId) : null) || heroPortraitUrl(hero);
   const color = attrColor(hero.attr);
   if (src) {
     box.append(h('img', { src, alt: hero.name ?? '', decoding: 'sync', class: 'df-hero-img' }));

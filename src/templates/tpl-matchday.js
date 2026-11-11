@@ -13,10 +13,10 @@ export const MATCHDAY_MAX = 6;
 
 /** Density presets by row count. */
 function density(n) {
-  if (n === 1) return { rowH: 230, gap: 0, logo: 64, name: 48, time: 72, meta: 22, num: 84, lineGap: 18, metaW: 300 };
-  if (n <= 2) return { rowH: 170, gap: 22, logo: 50, name: 38, time: 54, meta: 20, num: 64, lineGap: 14, metaW: 260 };
-  if (n <= 4) return { rowH: 124, gap: 16, logo: 38, name: 30, time: 42, meta: 17, num: 50, lineGap: 10, metaW: 230 };
-  return { rowH: 92, gap: 12, logo: 28, name: 23, time: 32, meta: 14, num: 38, lineGap: 7, metaW: 210 };
+  if (n === 1) return { rowH: 128, gap: 0, logo: 54, name: 41, time: 101, meta: 41, num: 54, lineGap: 20, metaW: 250 };
+  if (n <= 2) return { rowH: 126, gap: 20, logo: 44, name: 34, time: 68, meta: 24, num: 46, lineGap: 16, metaW: 250 };
+  if (n <= 4) return { rowH: 104, gap: 16, logo: 31, name: 26, time: 48, meta: 18, num: 38, lineGap: 11, metaW: 230 };
+  return { rowH: 82, gap: 12, logo: 24, name: 20, time: 34, meta: 13, num: 30, lineGap: 6, metaW: 205 };
 }
 
 export default defineTemplate({
@@ -37,7 +37,20 @@ export default defineTemplate({
     { key: 'title', label: 'Заголовок', default: 'MATCHDAY', maxLength: 16 },
     { key: 'subtitle', label: 'Подзаголовок', default: '', maxLength: 40 },
   ],
-  defaults: { theme: 'ember', rowOpacity: 55, showNumbers: true, useShortNames: false, showHeaderDate: true, gradient: { enabled: true, angle: 90, opacity: 75, size: 75 } },
+  defaults: {
+    theme: 'mono',
+    accent: '#ffffff',
+    text: '#ffffff',
+    font: { family: 'roboto-flex', weight: 700, slant: -10, width: 100 },
+    bodyFont: { family: 'roboto-flex', weight: 500, slant: -10, width: 100 },
+    background: { preset: 'solid', solid: '#000000', grayscale: 0, brightness: 100 },
+    overlay: { enabled: false, color: '#000000', opacity: 0 },
+    gradient: { enabled: false, color: '#000000', opacity: 0, angle: 90, size: 75 },
+    rowOpacity: 0,
+    showNumbers: false,
+    useShortNames: false,
+    showHeaderDate: true,
+  },
   settings: [
     ...commonSettings({ elements: [ELEMENTS.logos, ELEMENTS.tournament, ELEMENTS.stage, ELEMENTS.format, ELEMENTS.date, ELEMENTS.time, ELEMENTS.timezone] }),
     { key: 'showHeaderDate', type: 'toggle', label: 'Дата под заголовком', group: 'layout' },
@@ -59,23 +72,23 @@ export default defineTemplate({
   render(ctx) {
     const { data, style } = ctx;
     const t = data.texts ?? {};
-    const P = 60;
+    const P = 51;
     const all = data.items ?? [];
     const items = all.slice(0, MATCHDAY_MAX);
     const d = density(items.length || 1);
     const hasPlayer = !!(style.player?.enabled && style.player?.assetId && ctx.url(style.player.assetId));
-    const rowW = hasPlayer ? 680 : 960;
+    const rowW = hasPlayer ? 700 : 979;
 
-    const headerDate = style.showHeaderDate && data.date ? `${formatPosterDate(data.date, style.dateStyle)} · ${weekday(data.date, 'ru')}` : '';
-    // Same tournament/stage for every row → show it once in the header.
-    const tLine = (it) => [style.show.tournament ? it.tournament : '', style.show.stage ? it.stage : ''].filter(Boolean).join(' · ');
-    const sharedTournament = items.length > 1 && items.every((it) => tLine(it) === tLine(items[0])) ? tLine(items[0]) : '';
+    const headerDate = style.showHeaderDate && data.date ? `${formatPosterDate(data.date, style.dateStyle)} ${weekday(data.date, 'ru')}` : '';
+    const sameValue = (key) => items.length > 0 && items.every((it) => it[key] === items[0][key]) ? items[0][key] : '';
+    const sharedTournament = style.show.tournament ? sameValue('tournament') : '';
+    const sharedStage = style.show.stage ? sameValue('stage') : '';
     const header = h(
       'div',
-      { style: { position: 'absolute', left: `${P}px`, top: `${P}px`, display: 'flex', flexDirection: 'column', gap: '24px' } },
-      fitText(t.title || 'MATCHDAY', { ctx, role: 'head', size: 150, min: 70, width: hasPlayer ? 720 : 960, label: 'Заголовок', className: 'df-trim' }),
-      [headerDate, sharedTournament, t.subtitle].filter(Boolean).length
-        ? fitText([headerDate, sharedTournament, t.subtitle].filter(Boolean).join('  ·  '), { ctx, size: 34, min: 16, width: hasPlayer ? 700 : 960, weight: 700, label: 'Подзаголовок', className: 'df-trim', letterSpacing: '0.03em' })
+      { style: { position: 'absolute', left: `${P}px`, top: `${P}px`, display: 'flex', flexDirection: 'column', gap: '20px' } },
+      fitText(t.title || 'MATCHDAY', { ctx, role: 'head', size: 169, min: 70, width: hasPlayer ? 760 : 834, label: 'Заголовок', className: 'df-trim' }),
+      [headerDate, sharedStage, t.subtitle].filter(Boolean).length
+        ? fitText([headerDate, sharedStage, t.subtitle].filter(Boolean).join(' · '), { ctx, size: 54, min: 16, width: hasPlayer ? 720 : 834, weight: 500, label: 'Подзаголовок', className: 'df-trim' })
         : null,
     );
 
@@ -83,14 +96,14 @@ export default defineTemplate({
     const sameDate = items.length > 0 && items.every((it) => it.startDate === items[0].startDate) && items[0].startDate === data.date && style.showHeaderDate;
     const metaW = d.metaW;
     const numW = style.showNumbers ? d.num * 1.15 : 0;
-    const teamsW = rowW - 5 - 28 - numW - metaW - 28;
+    const teamsW = rowW - 3 - 20 - numW - metaW;
 
     const teamLine = (team) =>
       h(
         'div',
         { style: { display: 'flex', alignItems: 'center', gap: `${Math.round(d.logo * 0.35)}px` } },
         style.show.logos ? teamLogo(ctx, team, d.logo) : null,
-        fitText(displayName(team, style.useShortNames), { ctx, size: d.name, min: Math.max(12, d.name * 0.5), width: teamsW - (style.show.logos ? d.logo * 1.35 : 0), weight: 800, label: 'Команда', className: 'df-trim' }),
+        fitText(displayName(team, style.useShortNames), { ctx, size: d.name, min: Math.max(12, d.name * 0.5), width: teamsW - (style.show.logos ? d.logo * 1.25 : 0), weight: 500, label: 'Команда', className: 'df-trim' }),
       );
 
     const rows = items.map((it, i) => {
@@ -99,11 +112,12 @@ export default defineTemplate({
       const metaLines = [
         !sameDate && style.show.date && it.startDate ? formatPosterDate(it.startDate, style.dateStyle) : '',
         [style.show.format ? formatLong(it.format) : '', tz].filter(Boolean).join(' · '),
-        sharedTournament ? '' : tLine(it),
+        !sharedTournament && style.show.tournament ? it.tournament : '',
+        !sharedStage && style.show.stage ? it.stage : '',
       ].filter(Boolean);
       return h(
         'div',
-        { class: 'df-md-row', style: { width: `${rowW}px`, height: `${d.rowH}px`, background: hexA('#08080a', (style.rowOpacity ?? 55) / 100), padding: `0 28px 0 ${5 + 22}px`, gap: '0' } },
+        { class: 'df-md-row', style: { width: `${rowW}px`, height: `${d.rowH}px`, background: hexA('#000000', (style.rowOpacity ?? 0) / 100), padding: '0 0 0 20px', gap: '0', borderRadius: '0', overflow: 'visible' } },
         style.showNumbers
           ? fitText(String(i + 1).padStart(2, '0'), { ctx, role: 'head', size: d.num, min: 16, width: numW, label: 'Номер', className: 'df-trim' })
           : null,
@@ -111,8 +125,8 @@ export default defineTemplate({
         h(
           'div',
           { style: { width: `${metaW}px`, marginLeft: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: `${Math.round(d.lineGap * 0.9)}px` } },
-          time ? fitText(time, { ctx, role: 'head', size: d.time, min: 16, width: metaW, align: 'right', label: 'Время', className: 'df-trim' }) : null,
           metaLines.slice(0, d.rowH > 100 ? 3 : 2).map((line) => fitText(line, { ctx, size: d.meta, min: 10, width: metaW, weight: 600, align: 'right', label: 'Детали матча', className: 'df-trim', letterSpacing: '0.03em' })),
+          time ? fitText(time, { ctx, role: 'head', size: d.time, min: 16, width: metaW, align: 'right', label: 'Время', className: 'df-trim' }) : null,
         ),
       );
     });
@@ -122,21 +136,26 @@ export default defineTemplate({
     const totalH = items.length * d.rowH + Math.max(0, items.length - 1) * d.gap;
     const list = h(
       'div',
-      { style: { position: 'absolute', left: `${P}px`, bottom: `${P + 64}px`, display: 'flex', flexDirection: 'column', gap: `${d.gap}px`, height: `${totalH}px` } },
+      { style: { display: 'flex', flexDirection: 'column', gap: `${d.gap}px`, height: `${totalH}px` } },
       rows,
+    );
+    const matchGroup = h(
+      'div',
+      { style: { position: 'absolute', left: `${P}px`, bottom: '111px', display: 'flex', flexDirection: 'column', gap: sharedTournament ? '40px' : '0' } },
+      sharedTournament ? fitText(sharedTournament, { ctx, size: 41, min: 18, width: rowW, weight: 500, label: 'Турнир', className: 'df-trim' }) : null,
+      list,
     );
 
     const footer = h(
       'div',
       { style: { position: 'absolute', left: `${P}px`, right: `${P}px`, bottom: `${P}px`, height: '28px', display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' } },
-      handleBlock(ctx, { size: 20, align: 'left' }) ?? h('div'),
+      handleBlock(ctx, { size: 27, align: 'left' }) ?? h('div'),
       style.show.socials && [style.socials.line1, style.socials.line2].some((l) => l?.trim())
-        ? fitText([style.socials.line1, style.socials.line2].filter((l) => l?.trim()).join('   ·   '), { ctx, size: 20, min: 12, width: 620, align: 'right', label: 'Соцсети' })
+        ? fitText([style.socials.line1, style.socials.line2].filter((l) => l?.trim()).join('   ·   '), { ctx, size: 27, min: 12, width: 620, align: 'right', label: 'Соцсети' })
         : h('div'),
     );
     footer.lastChild.style.textTransform = 'lowercase';
 
-    return posterRoot(ctx, 'tpl-matchday', ...baseLayers(ctx), playerLayer(ctx, { anchor: 'right', height: 1000 }), h('div', { class: 'df-content' }, header, list, footer));
+    return posterRoot(ctx, 'tpl-matchday', ...baseLayers(ctx), playerLayer(ctx, { anchor: 'right', height: 1000 }), h('div', { class: 'df-content' }, header, matchGroup, footer));
   },
 });
-

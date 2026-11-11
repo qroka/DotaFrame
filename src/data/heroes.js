@@ -1,5 +1,5 @@
 /**
- * Static Dota 2 hero catalog (no network, no Valve images).
+ * Static Dota 2 hero catalog with optional bundled portraits.
  *
  * `id` is the numeric hero id used by the game client / OpenDota (stable across patches),
  * `slug` is the internal npc short name (npc_dota_hero_<slug>), useful for matching
@@ -7,8 +7,8 @@
  * ('all' = Universal) and may drift with balance patches — they are only used for
  * filtering and placeholder tint, never as game data on posters.
  *
- * Uncertain ids are marked with "verify". Portraits are supplied by the user
- * (see src/ui/heroPack.js) and stored as immutable MediaAssets.
+ * Uncertain ids are marked with "verify". Bundled portraits are used by default;
+ * user-supplied immutable MediaAssets override them when present.
  */
 import { matchesQuery } from '../core/utils.js';
 
@@ -165,6 +165,12 @@ export function heroInitials(hero) {
   const parts = name.replace(/'/g, '').split(/[\s-]+/).filter(Boolean);
   if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
   return name.slice(0, 2).toUpperCase();
+}
+
+/** Public URL for a portrait bundled under public/images/heroes. */
+export function heroPortraitUrl(hero) {
+  const slug = String(hero?.slug ?? '').trim();
+  return /^[a-z0-9_]+$/.test(slug) ? `/images/heroes/${slug}.png` : null;
 }
 
 /** Normalize a string for file-name matching: lowercase, letters/digits only. */

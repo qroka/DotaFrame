@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { HEROES, HEROES_BY_ID, getHero, searchHeroes, matchHeroFile, heroInitials, ATTRIBUTES } from '../../src/data/heroes.js';
+import { HEROES, HEROES_BY_ID, getHero, searchHeroes, matchHeroFile, heroInitials, heroPortraitUrl, ATTRIBUTES } from '../../src/data/heroes.js';
 
 describe('hero catalog', () => {
   it('has a full roster with unique ids, slugs and names', () => {
@@ -54,5 +54,11 @@ describe('hero catalog', () => {
   it('builds initials', () => {
     expect(heroInitials(getHero(1))).toBe('AM');
     expect(heroInitials(getHero(91))).toBe('IO');
+  });
+
+  it('builds a local bundled portrait URL', () => {
+    expect(heroPortraitUrl(getHero(1))).toBe('/images/heroes/antimage.png');
+    expect(heroPortraitUrl({ slug: '../escape' })).toBeNull();
+    expect(heroPortraitUrl(null)).toBeNull();
   });
 });

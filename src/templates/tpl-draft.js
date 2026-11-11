@@ -3,12 +3,12 @@
  * map number, tournament, format, optional map winner.
  */
 import { h } from '../core/dom.js';
+import { heroPortraitUrl } from '../data/heroes.js';
 import { defineTemplate } from './registry.js';
 import { commonSettings, ELEMENTS } from './shared/settings.js';
-import { baseLayers, posterRoot, teamLogo, fitText, handleBlock, tournamentLine, formatLong, displayName, hexA } from './shared/primitives.js';
+import { baseLayers, posterRoot, teamLogo, fitText, handleBlock, formatLong, displayName } from './shared/primitives.js';
 import { heroTile } from './shared/heroes.js';
 
-export const SIDE_COLORS = { radiant: '#3ddc84', dire: '#ff4b3e' };
 export const MAX_BANS = 10;
 
 export function draftHeroes(data) {
@@ -31,23 +31,23 @@ export default defineTemplate({
   texts: [
     { key: 'title', label: 'Заголовок', default: 'DRAFT', maxLength: 14 },
     { key: 'mapLabel', label: 'Подпись карты', default: 'GAME', maxLength: 10 },
-    { key: 'radiantLabel', label: 'Radiant', default: 'RADIANT', maxLength: 12 },
-    { key: 'direLabel', label: 'Dire', default: 'DIRE', maxLength: 12 },
-    { key: 'bansLabel', label: 'Подпись банов', default: 'BANS', maxLength: 12 },
-    { key: 'winnerLabel', label: 'Победа на карте', default: 'WIN', maxLength: 10 },
   ],
   defaults: {
-    theme: 'midnight',
-    sideColors: true,
+    theme: 'mono',
+    accent: '#ffffff',
+    text: '#ffffff',
+    font: { family: 'roboto-flex', weight: 700, slant: -10, width: 100 },
+    bodyFont: { family: 'roboto-flex', weight: 500, slant: -10, width: 100 },
+    background: { preset: 'solid', solid: '#000000', grayscale: 0, brightness: 100 },
+    overlay: { enabled: false, color: '#000000', opacity: 0 },
     showBans: true,
     showHeroNames: true,
     useShortNames: false,
     player: { enabled: false },
-    gradient: { enabled: true, opacity: 60, size: 50, angle: 0 },
+    gradient: { enabled: false, color: '#000000', opacity: 0, size: 50, angle: 0 },
   },
   settings: [
     ...commonSettings({ player: false, elements: [ELEMENTS.logos, ELEMENTS.tournament, ELEMENTS.stage, ELEMENTS.format] }),
-    { key: 'sideColors', type: 'toggle', label: 'Цвета Radiant / Dire', group: 'layout', hint: 'Иначе используется акцентный цвет' },
     { key: 'showBans', type: 'toggle', label: 'Показывать баны', group: 'layout' },
     { key: 'showHeroNames', type: 'toggle', label: 'Имена героев', group: 'layout' },
     { key: 'useShortNames', type: 'toggle', label: 'Короткие названия команд', group: 'layout' },
@@ -66,82 +66,80 @@ export default defineTemplate({
       out.push({ level: 'error', message: `Герой выбран несколько раз: ${names.join(', ')}` });
     }
     const heroes = draftHeroes(data).filter(Boolean);
-    const noPortrait = heroes.filter((x) => !x.portraitAssetId).length;
+    const noPortrait = heroes.filter((x) => !x.portraitAssetId && !heroPortraitUrl(x)).length;
     if (heroes.length && noPortrait) out.push({ level: 'warning', message: `Нет портретов для ${noPortrait} из ${heroes.length} героев — показаны заглушки. Загрузите набор портретов в «Данные и настройки».` });
     return out;
   },
   render(ctx) {
     const { data, style } = ctx;
     const t = data.texts ?? {};
-    const P = 60;
-    const W = 960;
-    const sideColor = (side) => (style.sideColors ? SIDE_COLORS[side] : style.accent);
+    const P = 51;
+    const W = 979;
 
-    const meta = [tournamentLine(ctx), style.show.format ? formatLong(data.format) : ''].filter(Boolean);
+    const meta = [
+      style.show.tournament ? data.tournament : '',
+      [style.show.format ? formatLong(data.format) : '', style.show.stage ? data.stage : ''].filter(Boolean).join(' · '),
+    ].filter(Boolean);
     const header = h(
       'div',
-      { style: { position: 'absolute', left: `${P}px`, right: `${P}px`, top: `${P}px`, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' } },
-      fitText(t.title || 'DRAFT', { ctx, role: 'head', size: 120, min: 60, width: 520, label: 'Заголовок', className: 'df-trim' }),
+      { style: { position: 'absolute', left: `${P}px`, right: `${P}px`, top: `${P}px`, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' } },
+      fitText(t.title || 'DRAFT', { ctx, role: 'head', size: 169, min: 60, width: 481, weight: 700, label: 'Заголовок', className: 'df-trim' }),
       h(
         'div',
-        { style: { display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '14px' } },
-        fitText(`${t.mapLabel || 'GAME'} ${data.mapNumber ?? 1}`, { ctx, role: 'head', size: 56, min: 28, width: 400, align: 'right', label: 'Номер карты', className: 'df-trim' }),
-        meta.map((line) => fitText(line, { ctx, size: 22, min: 12, width: 420, weight: 600, align: 'right', label: 'Турнир', className: 'df-trim', letterSpacing: '0.04em' })),
+        { style: { display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '20px', width: '266px' } },
+        fitText(`${t.mapLabel || 'GAME'} ${data.mapNumber ?? 1}`, { ctx, role: 'head', size: 68, min: 28, width: 231, weight: 700, align: 'right', label: 'Номер карты', className: 'df-trim' }),
+        meta.map((line) => fitText(line, { ctx, size: 27, min: 12, width: 266, weight: 400, align: 'right', label: 'Турнир', className: 'df-trim' })),
       ),
     );
     header.querySelectorAll('.df-fit')[1].style.color = style.accent;
 
-    const pickW = (W - 4 * 14) / 5;
-    const pickH = style.showBans ? 150 : 210;
+    const pickW = W / 5;
+    const pickH = style.showBans ? 110 : 180;
 
     const section = (side, team, picks, bans) => {
-      const color = sideColor(side);
-      const label = side === 'radiant' ? t.radiantLabel || 'RADIANT' : t.direLabel || 'DIRE';
-      const won = data.mapWinner === side;
       const bar = h(
         'div',
-        { style: { display: 'flex', alignItems: 'center', gap: '18px', height: '64px' } },
-        style.show.logos ? teamLogo(ctx, team, 60) : null,
-        fitText(displayName(team, style.useShortNames), { ctx, size: 40, min: 18, width: style.show.logos ? 560 : 640, weight: 800, label: 'Команда', className: 'df-trim' }),
-        h(
-          'div',
-          { style: { marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '14px' } },
-          won ? h('div', { style: { background: color, color: '#0b0b0d', padding: '9px 16px 8px', borderRadius: '6px' } }, fitText(t.winnerLabel || 'WIN', { ctx, size: 22, min: 12, width: 90, weight: 900, align: 'center', label: 'Победа', className: 'df-trim', letterSpacing: '0.08em' })) : null,
-          fitText(label, { ctx, size: 24, min: 12, width: 190, weight: 800, align: 'right', label: 'Сторона', className: 'df-trim', letterSpacing: '0.14em' }),
-        ),
+        { style: { display: 'flex', alignItems: 'center', gap: '10px', height: '54px' } },
+        style.show.logos ? teamLogo(ctx, team, 54) : null,
+        fitText(displayName(team, style.useShortNames), { ctx, size: 41, min: 18, width: style.show.logos ? 600 : 660, weight: 500, label: 'Команда', className: 'df-trim' }),
       );
-      bar.lastChild.lastChild.style.color = color;
 
-      const pickRow = h(
-        'div',
-        { style: { display: 'flex', gap: '14px', position: 'relative' } },
-        [0, 1, 2, 3, 4].map((i) => heroTile(ctx, picks?.[i] ?? null, { width: pickW, height: pickH, showName: style.showHeroNames, nameSize: 18 })),
-      );
-      const accentLine = h('div', { style: { height: '4px', width: `${W}px`, background: `linear-gradient(to right, ${color}, ${hexA(color, 0)})`, borderRadius: '2px' } });
+      const pickTiles = [0, 1, 2, 3, 4].map((i) => {
+        const tile = heroTile(ctx, picks?.[i] ?? null, { width: pickW, height: pickH, showName: false, radius: 0 });
+        tile.style.boxShadow = 'inset 0 0 0 1px rgba(255,255,255,.58)';
+        return tile;
+      });
+      const pickRow = h('div', { style: { display: 'flex', gap: '0', position: 'relative' } }, pickTiles);
+      const nameRow = style.showHeroNames
+        ? h('div', { style: { display: 'flex', width: `${W}px`, height: '14px' } }, [0, 1, 2, 3, 4].map((i) => fitText(picks?.[i]?.name ?? '—', { ctx, size: 20, min: 10, width: pickW, weight: 500, align: 'center', label: 'Имя героя', className: 'df-trim' })))
+        : null;
 
       let banRow = null;
       if (style.showBans) {
         const n = Math.min(bans?.length ?? 0, MAX_BANS);
-        const labelW = 110;
-        const avail = W - labelW;
-        const gap = 8;
-        const bw = n ? Math.min(84, (avail - (n - 1) * gap) / n) : 0;
+        const labelW = 0;
+        const avail = W;
+        const gap = 0;
+        const bw = n ? avail / n : 0;
         banRow = h(
           'div',
-          { style: { display: 'flex', alignItems: 'center', height: '52px' } },
-          fitText(t.bansLabel || 'BANS', { ctx, size: 18, min: 10, width: labelW - 14, weight: 700, label: 'Баны', className: 'df-trim', letterSpacing: '0.14em' }),
+          { style: { display: 'flex', alignItems: 'center', height: '79px' } },
           n
-            ? h('div', { style: { display: 'flex', gap: `${gap}px` } }, bans.slice(0, MAX_BANS).map((b) => heroTile(ctx, b, { width: bw, height: Math.round(bw * 0.6), banned: true, radius: 4 })))
+            ? h('div', { style: { display: 'flex', gap: `${gap}px` } }, bans.slice(0, MAX_BANS).map((b) => {
+                const tile = heroTile(ctx, b, { width: bw, height: 79, banned: true, radius: 0 });
+                tile.style.boxShadow = 'inset 0 0 0 1px rgba(255,255,255,.58)';
+                return tile;
+              }))
             : h('div', { style: { opacity: '0.45', fontSize: '18px', fontWeight: '600' } }, '—'),
         );
-        banRow.firstChild.style.opacity = '0.7';
       }
-      return h('div', { style: { display: 'flex', flexDirection: 'column', gap: '14px' } }, bar, accentLine, pickRow, banRow);
+      const rows = side === 'radiant' ? [bar, nameRow, pickRow, banRow] : [bar, banRow, pickRow, nameRow];
+      return h('div', { style: { display: 'flex', flexDirection: 'column', gap: '14px' } }, rows);
     };
 
     const body = h(
       'div',
-      { style: { position: 'absolute', left: `${P}px`, right: `${P}px`, top: '236px', display: 'flex', flexDirection: 'column', gap: '40px' } },
+      { style: { position: 'absolute', left: `${P}px`, right: `${P}px`, top: '290px', display: 'flex', flexDirection: 'column', gap: '41px' } },
       section('radiant', data.radiant, data.picksRadiant, data.bansRadiant),
       section('dire', data.dire, data.picksDire, data.bansDire),
     );
@@ -149,9 +147,9 @@ export default defineTemplate({
     const footer = h(
       'div',
       { style: { position: 'absolute', left: `${P}px`, right: `${P}px`, bottom: `${P}px`, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' } },
-      handleBlock(ctx, { size: 20, align: 'left' }) ?? h('div'),
+      handleBlock(ctx, { size: 27, align: 'left' }) ?? h('div'),
       style.show.socials && [style.socials.line1, style.socials.line2].some((l) => l?.trim())
-        ? fitText([style.socials.line1, style.socials.line2].filter((l) => l?.trim()).join('   ·   '), { ctx, size: 20, min: 12, width: 620, align: 'right', label: 'Соцсети' })
+        ? fitText([style.socials.line1, style.socials.line2].filter((l) => l?.trim()).join('   ·   '), { ctx, size: 27, min: 12, width: 620, align: 'right', label: 'Соцсети' })
         : h('div'),
     );
     footer.lastChild.style.textTransform = 'lowercase';

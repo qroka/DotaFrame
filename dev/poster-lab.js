@@ -7,7 +7,7 @@
  * Variants: default | long | nologo | items1 | items3 | items6 | items7 | bans0 | bans10 | full | empty
  * Playwright: window.__lab = { renderAll, render, exportOne, ready }
  */
-import '../src/styles/app.css';
+import '../src/styles/poster.css';
 import '../src/templates/index.js';
 import { listTemplates, getTemplate, defaultStyle, defaultTexts } from '../src/templates/registry.js';
 import { renderPoster } from '../src/render/renderPoster.js';

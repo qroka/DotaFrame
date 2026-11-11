@@ -10,11 +10,13 @@ export default createOutcomeTemplate({
   description: 'Поражение выбранной команды: крупное LOSE, счёт серии и соперник.',
   defaults: {
     theme: 'mono',
-    accent: '#c9ced6',
+    accent: '#8d8d8d',
     text: '#ffffff',
     align: 'right',
-    background: { preset: 'graphite', grayscale: 70, brightness: 85 },
-    overlay: { enabled: true, color: '#000000', opacity: 35 },
-    gradient: { enabled: true, color: '#000000', opacity: 80, size: 70, angle: 0 },
+    font: { family: 'roboto-flex', weight: 700, slant: -10, width: 100 },
+    bodyFont: { family: 'roboto-flex', weight: 500, slant: -10, width: 100 },
+    background: { preset: 'solid', solid: '#000000', grayscale: 0, brightness: 100 },
+    overlay: { enabled: false, color: '#000000', opacity: 0 },
+    gradient: { enabled: false, color: '#000000', opacity: 0, size: 70, angle: 0 },
   },
 });

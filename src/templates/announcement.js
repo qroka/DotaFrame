@@ -6,7 +6,7 @@
 import { h } from '../core/dom.js';
 import { defineTemplate } from './registry.js';
 import { commonSettings, ELEMENTS } from './shared/settings.js';
-import { baseLayers, playerLayer, posterRoot, teamLogo, fitText, socialsBlock, handleBlock, dateLine, tournamentLine, formatLong, perspectiveTeams, displayName } from './shared/primitives.js';
+import { baseLayers, playerLayer, posterRoot, teamLogo, fitText, socialsBlock, handleBlock, dateLine, perspectiveTeams, displayName } from './shared/primitives.js';
 
 export default defineTemplate({
   id: 'match-announcement',
@@ -27,7 +27,14 @@ export default defineTemplate({
     { key: 'note', label: 'Доп. подпись', default: '', maxLength: 40 },
   ],
   defaults: {
-    theme: 'ember',
+    theme: 'mono',
+    accent: '#ffffff',
+    text: '#ffffff',
+    font: { family: 'roboto-flex', weight: 700, slant: -10, width: 100 },
+    bodyFont: { family: 'roboto-flex', weight: 500, slant: -10, width: 100 },
+    background: { preset: 'solid', solid: '#000000', grayscale: 0, brightness: 100 },
+    overlay: { enabled: false, color: '#000000', opacity: 0 },
+    gradient: { enabled: false, color: '#000000', opacity: 0, size: 60, angle: 0 },
     logoLayout: 'vertical',
     useShortNames: false,
   },
@@ -47,55 +54,55 @@ export default defineTemplate({
     const { data, style } = ctx;
     const t = data.texts ?? {};
     const { us, them } = perspectiveTeams(data);
-    const P = 60; // safe padding
+    const P = 51; // 60 px on the supplied 1280 px reference
 
     const header = h(
       'div',
-      { style: { position: 'absolute', left: `${P}px`, top: `${P}px`, display: 'flex', flexDirection: 'column', gap: '26px' } },
-      fitText(t.title || 'MATCH', { ctx, role: 'head', size: 190, min: 80, width: 620, label: 'Заголовок', className: 'df-trim' }),
-      fitText(`${t.vsPrefix ? `${t.vsPrefix} ` : ''}${displayName(them, style.useShortNames)}`, { ctx, size: 56, min: 24, width: 600, height: 112, mode: 'box', lineHeight: '1', label: 'Соперник' }),
+      { style: { position: 'absolute', left: `${P}px`, top: `${P}px`, display: 'flex', flexDirection: 'column', gap: '20px' } },
+      fitText(t.title || 'MATCH', { ctx, role: 'head', size: 169, min: 80, width: 538, label: 'Заголовок', className: 'df-trim' }),
+      fitText(`${t.vsPrefix ? `${t.vsPrefix} ` : ''}${displayName(them, style.useShortNames)}`, { ctx, size: 54, min: 24, width: 538, height: 63, mode: 'box', lineHeight: '1', weight: 500, label: 'Соперник' }),
     );
 
     const vertical = style.logoLayout !== 'horizontal';
     // Without a player cut-out the right half is free: logos take it over, larger.
     const hasPlayer = !!(style.player?.enabled && style.player?.assetId && ctx.url(style.player.assetId));
     const free = !hasPlayer;
-    const vSize = free ? 230 : 170;
-    const hSize = free ? 250 : 210;
+    const vSize = free ? 216 : 155;
+    const hSize = free ? 216 : 190;
     const logos = style.show.logos
       ? h(
           'div',
           {
             style: {
               position: 'absolute',
-              left: vertical ? (free ? `${810 - vSize / 2}px` : `${P}px`) : `${P}px`,
-              top: vertical ? (free ? '290px' : '400px') : free ? '420px' : '470px',
+              left: vertical ? `${P}px` : `${P}px`,
+              top: vertical ? '287px' : free ? '390px' : '430px',
               width: vertical ? `${vSize}px` : free ? '960px' : '560px',
               display: 'flex',
               flexDirection: vertical ? 'column' : 'row',
               alignItems: 'center',
-              justifyContent: vertical ? 'flex-start' : free ? 'center' : 'space-between',
-              gap: vertical ? '28px' : free ? '70px' : '0',
+              justifyContent: vertical ? 'flex-start' : free ? 'flex-start' : 'space-between',
+              gap: vertical ? '40px' : free ? '72px' : '0',
               color: style.text,
             },
           },
           teamLogo(ctx, us, vertical ? vSize : hSize),
-          crossMark(vertical ? (free ? 56 : 46) : 54, style.accent),
+          crossMark(vertical ? 64 : 48, style.text),
           teamLogo(ctx, them, vertical ? vSize : hSize),
         )
       : null;
 
-    const info = [dateLine(ctx), formatLongIf(ctx), tournamentLine(ctx), t.note].filter(Boolean);
+    const info = [style.show.stage ? data.stage : '', tournamentLineOnly(ctx), t.note, dateLine(ctx)].filter(Boolean);
     const footer = h(
       'div',
-      { style: { position: 'absolute', left: `${P}px`, bottom: `${P}px`, display: 'flex', flexDirection: 'column', gap: '18px' } },
+      { style: { position: 'absolute', left: `${P}px`, bottom: `${P}px`, display: 'flex', flexDirection: 'column', gap: '20px' } },
       info.map((line, i) =>
         fitText(line, {
           ctx,
-          size: i === 0 && style.show.date ? 40 : 28,
+          size: i === info.length - 1 ? 41 : 27,
           min: 16,
-          width: 560,
-          weight: i === 0 ? 800 : 600,
+          width: 520,
+          weight: i === info.length - 1 ? 700 : 500,
           label: 'Подпись',
           className: 'df-trim',
           letterSpacing: i === 0 ? '0' : '0.02em',
@@ -106,16 +113,16 @@ export default defineTemplate({
     const right = h(
       'div',
       { style: { position: 'absolute', right: `${P}px`, top: `${P}px`, bottom: `${P}px`, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', alignItems: 'flex-end' } },
-      socialsBlock(ctx, { size: 26 }) ?? h('div'),
-      handleBlock(ctx, { size: 22 }) ?? h('div'),
+      socialsBlock(ctx, { size: 27 }) ?? h('div'),
+      handleBlock(ctx, { size: 27 }) ?? h('div'),
     );
 
     return posterRoot(ctx, 'tpl-announcement', ...baseLayers(ctx), playerLayer(ctx, { anchor: 'right', height: 980 }), h('div', { class: 'df-content' }, header, logos, footer, right));
   },
 });
 
-function formatLongIf(ctx) {
-  return ctx.style.show.format ? formatLong(ctx.data.format) : '';
+function tournamentLineOnly(ctx) {
+  return ctx.style.show.tournament ? ctx.data.tournament : '';
 }
 
 /** Thin × mark from the original prototype. */

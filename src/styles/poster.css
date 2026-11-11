@@ -99,6 +99,20 @@
   flex-direction: column;
   gap: 14px;
 }
+.tpl-announcement .df-socials {
+  gap: 20px;
+}
+.tpl-announcement .df-logo img,
+.tpl-matchday .df-logo img,
+.tpl-draft .df-logo img {
+  filter: grayscale(1) brightness(0) invert(1);
+}
+.tpl-announcement .df-logo-ph,
+.tpl-matchday .df-logo-ph,
+.tpl-draft .df-logo-ph {
+  color: #fff;
+  opacity: 1;
+}
 .df-trim {
   text-box-trim: trim-both;
   text-box-edge: cap alphabetic;
@@ -186,6 +200,6 @@
   left: 0;
   top: 0;
   bottom: 0;
-  width: 5px;
+  width: 3px;
   background: var(--accent);
 }

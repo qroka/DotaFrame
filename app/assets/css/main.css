@@ -1,0 +1,23 @@
+@import "tailwindcss";
+@import "@nuxt/ui";
+@import "@fontsource-variable/inter";
+@import "@fontsource-variable/oswald";
+
+@theme static {
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Oswald Variable", "Inter Variable", sans-serif;
+}
+
+:root { --ui-radius: 0.5rem; --ui-container: 96rem; }
+html, body, #__nuxt { min-height: 100%; }
+body { margin: 0; background: var(--ui-bg); color: var(--ui-text); }
+.df-display { font-family: var(--font-display); font-variation-settings: "wdth" 115; }
+.df-grid {
+  background-image:
+    linear-gradient(to right, color-mix(in oklab, var(--ui-border) 45%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in oklab, var(--ui-border) 45%, transparent) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
+}

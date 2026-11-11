@@ -1,42 +1,42 @@
 {
   "name": "dotaframe",
-  "version": "1.0.0",
-  "description": "DotaFrame — генератор киберспортивной графики Dota 2: анонсы, результаты, афиши игрового дня и драфты.",
+  "version": "2.0.0",
+  "description": "DotaFrame — локальный редактор киберспортивной графики на Nuxt и Nuxt UI.",
   "type": "module",
+  "private": true,
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview",
+    "dev": "nuxt dev",
+    "build": "nuxt build",
+    "generate": "nuxt generate",
+    "preview": "nuxt preview",
+    "postinstall": "nuxt prepare",
+    "typecheck": "nuxt typecheck",
     "test": "vitest run",
     "test:unit": "vitest run",
-    "test:e2e": "playwright test",
-    "test:all": "vitest run && playwright test"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/qroka/DotaFrame.git"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "bugs": {
-    "url": "https://github.com/qroka/DotaFrame/issues"
-  },
-  "homepage": "https://github.com/qroka/DotaFrame#readme",
-  "devDependencies": {
-    "@playwright/test": "^1.56.1",
-    "@tailwindcss/vite": "^4.3.3",
-    "fake-indexeddb": "^6.0.1",
-    "tailwindcss": "^4.3.3",
-    "vite": "^8.3.4",
-    "vitest": "^3.2.4"
+    "test:e2e": "playwright test --project=chromium",
+    "test:e2e:cross-browser": "playwright test",
+    "test:all": "vitest run && npm run test:e2e"
   },
   "dependencies": {
     "@fontsource-variable/inter": "^5.2.8",
     "@fontsource-variable/oswald": "^5.2.8",
     "@fontsource-variable/roboto-flex": "^5.2.8",
     "@fontsource-variable/unbounded": "^5.2.8",
-    "html-to-image": "^1.11.13"
+    "@iconify-json/lucide": "^1.2.153",
+    "@nuxt/ui": "^4.12.0",
+    "html-to-image": "^1.11.13",
+    "nuxt": "^4.6.4",
+    "tailwindcss": "^4.3.3",
+    "vue": "^3.5.45",
+    "zod": "^4.6.7"
   },
-  "private": true
+  "devDependencies": {
+    "@playwright/test": "1.61.0",
+    "@types/node": "^24.10.0",
+    "fake-indexeddb": "^6.0.1",
+    "typescript": "npm:@typescript/typescript6@^6.0.2",
+    "vite": "^8.3.4",
+    "vitest": "^5.0.0",
+    "vue-tsc": "^3.2.0"
+  }
 }

@@ -6,7 +6,7 @@
  * Preview and export call exactly the same function with the same data/style,
  * so what the user sees is what gets exported.
  */
-import { assetUrls, collectAssetRefs } from '../data/media.js';
+import { collectAssetRefs } from '../data/media.js';
 import { getFont } from '../templates/shared/fonts.js';
 import { normalizeStyle } from '../templates/registry.js';
 
@@ -83,7 +83,7 @@ export function fitAll(root) {
 export async function renderPoster(host, { template, data, style: rawStyle, mode = 'preview' }) {
   const style = normalizeStyle(template, rawStyle);
   const ids = [...collectAssetRefs({ data, style })];
-  const urls = await assetUrls(ids);
+  const urls = Object.fromEntries(ids.map((id) => [id, `/api/media/${encodeURIComponent(id)}`]));
   const issues = [];
   const missing = ids.filter((id) => !urls[id]);
   if (missing.length) issues.push({ level: 'warning', message: `Не найдено изображений: ${missing.length}. Вместо них показаны заглушки.` });
