@@ -41,6 +41,21 @@ test.describe('API: media and backup safety', () => {
     expect((await restored.json()).ok).toBe(true);
   });
 
+  test('backup is a streamed download that restores line by line and refuses a truncated file', async ({ request }) => {
+    const response = await request.get('/api/backup');
+    expect(response.headers()['content-disposition']).toContain('attachment');
+    const text = await response.text();
+    const lines = text.trimEnd().split('\n');
+    expect(lines[0]).toMatch(/,"data":\{$/);
+    expect(lines.at(-1)).toBe('}}');
+    expect(JSON.parse(text).layout).toBe('lines');
+
+    const send = (body) => request.post('/api/backup', { data: body, headers: { 'content-type': 'application/json' } });
+    expect((await send(text)).status()).toBe(200);
+    const truncated = await send(text.slice(0, Math.floor(text.length / 2)));
+    expect(truncated.status()).toBe(422);
+  });
+
   test('image cleanup is a dry run unless confirmed', async ({ request }) => {
     const report = await (await request.get('/api/media/orphans')).json();
     expect(report).toEqual(expect.objectContaining({ count: expect.any(Number), bytes: expect.any(Number), items: expect.any(Array) }));
