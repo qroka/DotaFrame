@@ -20,6 +20,38 @@ export function sniffImageType(bytes: Uint8Array): ImageType | null {
   return SVG_START.test(head) ? 'image/svg+xml' : null
 }
 
+const PNG_SIGNATURE_LENGTH = 8
+const ascii = (bytes: Uint8Array, start: number, length: number) => String.fromCharCode(...bytes.subarray(start, start + length))
+
+/**
+ * Whether an image can contain transparent pixels, judged from the file header only:
+ * true / false when the format makes it certain, null when it cannot be known (GIF, SVG, unreadable files).
+ */
+export function detectTransparency(bytes: Uint8Array, type: ImageType): boolean | null {
+  if (type === 'image/jpeg') return false
+  if (type === 'image/png') {
+    // IHDR colour type: 4 = grey + alpha, 6 = RGBA; other types are opaque unless a tRNS chunk says otherwise.
+    const colorType = bytes[PNG_SIGNATURE_LENGTH + 8 + 9]
+    if (colorType === 4 || colorType === 6) return true
+    let offset = PNG_SIGNATURE_LENGTH
+    while (offset + 8 <= bytes.length) {
+      const length = ((bytes[offset]! << 24) | (bytes[offset + 1]! << 16) | (bytes[offset + 2]! << 8) | bytes[offset + 3]!) >>> 0
+      const name = ascii(bytes, offset + 4, 4)
+      if (name === 'tRNS') return true
+      if (name === 'IDAT' || name === 'IEND') return false
+      offset += 12 + length
+    }
+    return colorType === undefined ? null : false
+  }
+  if (type === 'image/webp') {
+    const chunk = ascii(bytes, 12, 4)
+    if (chunk === 'VP8X') return ((bytes[20] ?? 0) & 0x10) !== 0
+    if (chunk === 'VP8L') return ((bytes[24] ?? 0) & 0x10) !== 0
+    if (chunk === 'VP8 ') return false
+  }
+  return null
+}
+
 export const isImageType = (value: string): value is ImageType => (IMAGE_TYPES as readonly string[]).includes(value)
 
 /**

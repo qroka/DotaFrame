@@ -34,6 +34,10 @@ export const BACKUP_TABLES = {
     primaryKey: 'id',
     columns: ['id', 'nickname', 'real_name', 'team_id', 'role', 'country', 'notes', 'photo_asset_id', 'created_at', 'updated_at']
   },
+  hero_images: {
+    primaryKey: 'id',
+    columns: ['id', 'hero_id', 'title', 'image_asset_id', 'has_alpha', 'created_at', 'updated_at']
+  },
   matches: {
     primaryKey: 'id',
     columns: [

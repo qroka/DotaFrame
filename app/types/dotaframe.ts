@@ -38,6 +38,12 @@ export interface Player {
   country: string; notes: string; photoAssetId: string | null; createdAt?: string; updatedAt?: string
   externalRefs?: ReadonlyArray<{ provider: 'pandascore', externalId: string }>
 }
+/** An extra picture of a hero (cut-out, key art) kept next to the bundled icon. */
+export interface HeroImage {
+  id: string; heroId: number; title: string; assetId: string; mimeType: string
+  /** true / false when the file header says so, null when it cannot be known (GIF, SVG). */
+  hasAlpha: boolean | null; createdAt?: string; updatedAt?: string
+}
 export interface ExternalPlayer {
   externalId: string; nickname: string; realName: string; role: PlayerRole; country: string; photoUrl: string | null
   team: { externalId: string, name: string } | null; localTeamId: string | null; localPlayerId: string | null

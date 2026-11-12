@@ -2,6 +2,8 @@ import { randomUUID } from 'node:crypto'
 import { createError } from 'h3'
 import { z } from 'zod'
 import { json, useDatabase } from './database'
+import { detectTransparency, isImageType } from './media'
+import { getHero } from '../../src/data/heroes'
 
 type Row = Record<string, unknown>
 const now = () => new Date().toISOString()
@@ -62,6 +64,15 @@ const playerSchema = z.object({
   photoAssetId: z.string().nullable().default(null)
 })
 
+const heroImageSchema = z.object({
+  id: z.string().nullable().optional(),
+  heroId: z.number().int().refine(value => !!getHero(value), 'Герой не найден в каталоге'),
+  title: z.string().trim().max(80).default(''),
+  assetId: z.string().min(1, 'Загрузите изображение'),
+  /** Measured by the browser from real pixels; the file header can only say that an alpha channel exists. */
+  hasAlpha: z.boolean().nullable().optional()
+})
+
 const matchSchema = z.object({
   id: z.string().nullable().optional(),
   teamAId: z.string().min(1),
@@ -115,6 +126,7 @@ const TOURNAMENT_COLUMNS = ['id', 'name', 'league', 'tier', 'start_date', 'end_d
 const LEAGUE_COLUMNS = ['id', 'name', 'notes', 'logo_asset_id', 'created_at', 'updated_at']
 const STAGE_COLUMNS = ['id', 'name', 'series_id', 'tier', 'start_date', 'end_date', 'prize_pool', 'notes', 'created_at', 'updated_at']
 const PLAYER_COLUMNS = ['id', 'nickname', 'real_name', 'team_id', 'role', 'country', 'notes', 'photo_asset_id', 'created_at', 'updated_at']
+const HERO_IMAGE_COLUMNS = ['id', 'hero_id', 'title', 'image_asset_id', 'has_alpha', 'created_at', 'updated_at']
 const MATCH_COLUMNS = [
   'id', 'team_a_id', 'team_b_id', 'tournament', 'stage', 'start_date', 'start_time', 'timezone',
   'format', 'status', 'score_a', 'score_b', 'winner_team_id', 'notes', 'created_at', 'updated_at'
@@ -140,6 +152,7 @@ const SQL = {
   league: upsertSql('leagues', LEAGUE_COLUMNS, ['id'], ['created_at']),
   stage: upsertSql('stages', STAGE_COLUMNS, ['id'], ['created_at']),
   player: upsertSql('players', PLAYER_COLUMNS, ['id'], ['created_at']),
+  heroImage: upsertSql('hero_images', HERO_IMAGE_COLUMNS, ['id'], ['created_at']),
   match: upsertSql('matches', MATCH_COLUMNS, ['id'], ['created_at']),
   project: upsertSql('projects', PROJECT_COLUMNS, ['id'], ['created_at']),
   draft: upsertSql('drafts', DRAFT_COLUMNS, ['match_id', 'map_number'], ['id']),
@@ -219,6 +232,17 @@ function toPlayer(row: Row, refs: Map<string, ExternalRef[]>) {
     id: row.id, nickname: row.nickname, realName: row.real_name, teamId: row.team_id ?? null, role: row.role, country: row.country,
     notes: row.notes, photoAssetId: row.photo_asset_id, createdAt: row.created_at, updatedAt: row.updated_at,
     externalRefs: refs.get(String(row.id)) ?? []
+  }
+}
+
+/** A hero picture with its stored image type (joined from media); the bytes are never loaded for lists. */
+const HERO_IMAGE_SELECT = `SELECT h.*, m.mime_type FROM hero_images h JOIN media m ON m.id = h.image_asset_id`
+
+function toHeroImage(row: Row) {
+  return {
+    id: row.id, heroId: row.hero_id, title: row.title, assetId: row.image_asset_id, mimeType: row.mime_type,
+    hasAlpha: row.has_alpha === null || row.has_alpha === undefined ? null : Number(row.has_alpha) === 1,
+    createdAt: row.created_at, updatedAt: row.updated_at
   }
 }
 
@@ -407,6 +431,35 @@ export const repository = {
         database.exec('ROLLBACK')
         throw cause
       }
+    }
+  },
+
+  heroImages: {
+    list: () => all(`${HERO_IMAGE_SELECT} ORDER BY h.hero_id, h.created_at, h.id`).map(toHeroImage),
+    get(key: string) {
+      const row = one(`${HERO_IMAGE_SELECT} WHERE h.id = ?`, key)
+      return row ? toHeroImage(row) : null
+    },
+    save(input: unknown) {
+      const value = parse(heroImageSchema, input)
+      const media = one('SELECT mime_type, bytes FROM media WHERE id = ?', value.assetId)
+      if (!media) throw createError({ statusCode: 422, statusMessage: 'Изображение не найдено' })
+      if (!isImageType(String(media.mime_type))) throw createError({ statusCode: 415, statusMessage: 'Поддерживаются только PNG, JPEG, WebP, GIF и SVG' })
+      const key = value.id || id('heroimg')
+      const timestamp = now()
+      const createdAt = createdAtOf('hero_images', value.id) || timestamp
+      // The header is an upper bound (no alpha channel means no transparency); measured pixels refine it, and a
+      // rename that sends no measurement keeps what was stored for the same asset.
+      const header = detectTransparency(media.bytes as Uint8Array, media.mime_type as Parameters<typeof detectTransparency>[1])
+      const previous = value.id ? one('SELECT image_asset_id, has_alpha FROM hero_images WHERE id = ?', value.id) : undefined
+      const kept = previous && previous.image_asset_id === value.assetId && previous.has_alpha !== null ? Number(previous.has_alpha) === 1 : undefined
+      const transparent = header === false ? false : typeof value.hasAlpha === 'boolean' ? value.hasAlpha : kept ?? header
+      useDatabase().prepare(SQL.heroImage).run(key, value.heroId, value.title, value.assetId, transparent === null ? null : Number(transparent), createdAt, timestamp)
+      return this.get(key)
+    },
+    /** Removes the row only. The media asset stays: publications that already use the picture keep it. */
+    remove(key: string) {
+      useDatabase().prepare('DELETE FROM hero_images WHERE id = ?').run(key)
     }
   },
 

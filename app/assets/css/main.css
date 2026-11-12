@@ -18,6 +18,12 @@ body { margin: 0; background: var(--ui-bg); color: var(--ui-text); }
     linear-gradient(to bottom, color-mix(in oklab, var(--ui-border) 45%, transparent) 1px, transparent 1px);
   background-size: 28px 28px;
 }
+/* Checkerboard behind cut-outs so transparent areas of an image are visible. */
+.df-checker {
+  background-color: var(--ui-bg-elevated);
+  background-image: conic-gradient(color-mix(in oklab, var(--ui-text) 9%, transparent) 25%, transparent 0 50%, color-mix(in oklab, var(--ui-text) 9%, transparent) 0 75%, transparent 0);
+  background-size: 16px 16px;
+}
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
 }

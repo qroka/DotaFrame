@@ -265,6 +265,27 @@ function migrationV6(database: DatabaseSync) {
   `)
 }
 
+function migrationV7(database: DatabaseSync) {
+  // Extra pictures of a hero (cut-outs, key art) to use as the poster "player / character" image.
+  // hero_id is the catalogue id from src/data/heroes. The picture itself is a media asset, which publications
+  // reference by id, so deleting a row here never changes publications that already use the picture.
+  database.exec(`
+    CREATE TABLE hero_images (
+      id TEXT PRIMARY KEY,
+      hero_id INTEGER NOT NULL,
+      title TEXT NOT NULL DEFAULT '',
+      image_asset_id TEXT NOT NULL REFERENCES media(id) ON DELETE CASCADE,
+      has_alpha INTEGER,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+    CREATE INDEX hero_images_hero_idx ON hero_images(hero_id);
+
+    INSERT INTO schema_migrations(version, applied_at)
+    VALUES (7, datetime('now'));
+  `)
+}
+
 function migrate(database: DatabaseSync) {
   database.exec(`
     PRAGMA journal_mode = WAL;
@@ -276,7 +297,7 @@ function migrate(database: DatabaseSync) {
     );
   `)
   const applied = new Set((database.prepare('SELECT version FROM schema_migrations').all() as Array<{ version: number }>).map(row => row.version))
-  for (const [version, migration] of [[1, migrationV1], [2, migrationV2], [3, migrationV3], [4, migrationV4], [5, migrationV5], [6, migrationV6]] as const) {
+  for (const [version, migration] of [[1, migrationV1], [2, migrationV2], [3, migrationV3], [4, migrationV4], [5, migrationV5], [6, migrationV6], [7, migrationV7]] as const) {
     if (applied.has(version)) continue
     database.exec('BEGIN IMMEDIATE')
     try {

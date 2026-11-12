@@ -1,4 +1,4 @@
-import type { ExternalLeague, ExternalMatch, ExternalPlayer, ExternalStage, ExternalTeamDetails, ExternalTournament, Match, PackageItemPreview, PosterProject, ProjectSummary, PublicationPackage, Player, Team, Tournament, League, Stage } from '~/types/dotaframe'
+import type { ExternalLeague, ExternalMatch, ExternalPlayer, ExternalStage, ExternalTeamDetails, ExternalTournament, HeroImage, Match, PackageItemPreview, PosterProject, ProjectSummary, PublicationPackage, Player, Team, Tournament, League, Stage } from '~/types/dotaframe'
 
 export interface BootstrapData { teams: Team[], leagues: League[], tournaments: Tournament[], stages: Stage[], players: Player[], matches: Match[], projects: ProjectSummary[] }
 
@@ -23,6 +23,11 @@ export const api = {
     get: (id: string) => $fetch<Stage>(`/api/stages/${id}`),
     save: (value: Partial<Stage>) => $fetch<Stage>('/api/stages', { method: 'POST', body: value }),
     remove: (id: string) => $fetch(`/api/stages/${id}`, { method: 'DELETE' })
+  },
+  heroImages: {
+    list: () => $fetch<HeroImage[]>('/api/hero-images'),
+    save: (value: Partial<HeroImage> & { heroId: number, assetId: string }) => $fetch<HeroImage>('/api/hero-images', { method: 'POST', body: value }),
+    remove: (id: string) => $fetch(`/api/hero-images/${id}`, { method: 'DELETE' })
   },
   players: {
     get: (id: string) => $fetch<Player>(`/api/players/${id}`),

@@ -25,6 +25,7 @@ async function setTheme(theme: string) {
   const { applyTheme } = await import('~~/src/templates/shared/settings')
   emit('updateStyle', applyTheme(props.style, theme))
 }
+const pickerOpen = shallowRef(false)
 async function upload(setting: Record<string, any>, event: Event) {
   const input = event.target as HTMLInputElement
   const file = input.files?.[0]
@@ -57,9 +58,15 @@ async function upload(setting: Record<string, any>, event: Event) {
         <UFormField v-else-if="setting.type === 'text'" :label="setting.label"><UInput :model-value="String(get(setting.key) ?? '')" :maxlength="setting.maxLength" class="w-full" @update:model-value="set(setting.key, $event)" /></UFormField>
         <USwitch v-else-if="setting.type === 'toggle'" :model-value="get(setting.key)" :label="setting.label" @update:model-value="set(setting.key, $event)" />
         <UFormField v-else-if="setting.type === 'image'" :label="setting.label" :description="setting.hint">
-          <div class="flex gap-2"><UButton as="label" class="cursor-pointer" color="neutral" variant="outline" icon="i-lucide-upload" label="Выбрать файл"><input type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml" class="sr-only" @change="upload(setting, $event)"></UButton><UButton v-if="get(setting.key)" label="Убрать" color="neutral" variant="ghost" @click="set(setting.key, null)" /></div>
+          <div v-if="get(setting.key)" class="df-checker mb-2 grid h-28 place-items-center overflow-hidden rounded-lg ring ring-default"><img :src="`/api/media/${get(setting.key)}`" alt="Выбранное изображение" class="max-h-full max-w-full object-contain"></div>
+          <div class="flex flex-wrap gap-2">
+            <UButton as="label" class="cursor-pointer" color="neutral" variant="outline" icon="i-lucide-upload" label="Выбрать файл"><input type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml" class="sr-only" @change="upload(setting, $event)"></UButton>
+            <UButton v-if="setting.kind === 'player'" label="Из героев и игроков" icon="i-lucide-images" color="neutral" variant="outline" @click="pickerOpen = true" />
+            <UButton v-if="get(setting.key)" label="Убрать" color="neutral" variant="ghost" @click="set(setting.key, null)" />
+          </div>
         </UFormField>
       </div>
     </section>
+    <EditorPlayerImagePicker v-model:open="pickerOpen" :current="get('player.assetId')" @select="set('player.assetId', $event)" />
   </div>
 </template>

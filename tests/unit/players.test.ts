@@ -42,7 +42,7 @@ describe('players migration', () => {
     `)
     legacy.close()
     const database = useDatabase()
-    expect(count('SELECT max(version) count FROM schema_migrations')).toBe(6)
+    expect(count('SELECT max(version) count FROM schema_migrations')).toBe(7)
     expect(database.prepare('SELECT local_id, metadata_json FROM external_entities WHERE id = ?').get('e1')).toEqual({ local_id: 'team_1', metadata_json: '{"logoUrl":null}' })
     database.prepare("INSERT INTO external_entities VALUES('e2', 'pandascore', 'player', '30258', 'player_1', 'now', NULL)").run()
     expect(count("SELECT count(*) count FROM sqlite_master WHERE type = 'index' AND name = 'external_entities_local_idx'")).toBe(1)
