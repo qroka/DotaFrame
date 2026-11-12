@@ -4,7 +4,9 @@
  * State: { title, templateId, templateVersion, data, style, size, matchId }
  * - every mutation goes through `commit(next, { label, coalesce })`
  * - `coalesce` merges consecutive edits with the same key (slider drags, typing)
- * - `isDirty()` compares against the last saved snapshot
+ * - `isDirty()` compares content against the last saved snapshot
+ * - `hasUnsaved()` is the O(1) variant: states are immutable, so reference equality with the saved state
+ *   is enough, and it stays correct through undo/redo
  */
 import { stableStringify, clone } from '../core/utils.js';
 
@@ -17,6 +19,7 @@ export function createStore(initial, { savedState = null } = {}) {
   let future = [];
   let lastCoalesce = null;
   let savedKey = savedState ? keyOf(savedState) : null;
+  let savedRef = null;
   const initialKey = keyOf(initial);
   const listeners = new Set();
 
@@ -34,7 +37,7 @@ export function createStore(initial, { savedState = null } = {}) {
       listeners.add(fn);
       return () => listeners.delete(fn);
     },
-    commit(next, { label = 'Изменение', coalesce = null, source = 'user' } = {}) {
+    commit(next, { label = 'Изменение', coalesce = /** @type {string | null} */ (null), source = 'user' } = {}) {
       if (next === state) return;
       const now = Date.now();
       const merge = coalesce && lastCoalesce && lastCoalesce.key === coalesce && now - lastCoalesce.at < COALESCE_MS;
@@ -53,7 +56,10 @@ export function createStore(initial, { savedState = null } = {}) {
       past = [];
       future = [];
       lastCoalesce = null;
-      if (saved) savedKey = keyOf(next);
+      if (saved) {
+        savedKey = keyOf(next);
+        savedRef = next;
+      }
       notify({ type: 'reset' });
     },
     undo() {
@@ -78,10 +84,13 @@ export function createStore(initial, { savedState = null } = {}) {
     canRedo: () => future.length > 0,
     markSaved(s = state) {
       savedKey = keyOf(s);
+      savedRef = s;
       notify({ type: 'saved' });
     },
     /** Unsaved user changes. A brand-new untouched project is not dirty (nothing to lose). */
     isDirty: () => keyOf(state) !== (savedKey ?? initialKey),
+    /** Cheap check for the UI: true until the exact saved state object is current again. */
+    hasUnsaved: () => state !== savedRef,
     isNew: () => savedKey === null,
   };
 }
