@@ -58,7 +58,7 @@ async function removeTeam() {
         <UTable :data="filtered" :columns="columns">
           <template #name-cell="{ row }">
             <div class="flex items-center gap-3">
-              <UAvatar :src="row.original.logoAssetId ? `/api/media/${row.original.logoAssetId}` : undefined" :alt="row.original.name" icon="i-lucide-shield" size="sm" :ui="{ image: 'object-contain' }" class="bg-elevated" />
+              <UAvatar :src="row.original.logoAssetId ? `/api/media/${row.original.logoAssetId}` : undefined" :alt="row.original.name" icon="i-df-no-logo" size="sm" :ui="{ image: 'object-contain' }" class="bg-elevated" />
               <div class="min-w-0">
                 <div class="flex items-center gap-2 font-medium text-highlighted">
                   {{ row.original.name }}

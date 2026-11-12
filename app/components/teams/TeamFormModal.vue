@@ -71,7 +71,7 @@ async function save(event: FormSubmitEvent<Schema>) {
           <div class="flex items-center gap-3">
             <div class="grid size-14 shrink-0 place-items-center overflow-hidden rounded-lg bg-elevated ring ring-default">
               <img v-if="logoUrl" :src="logoUrl" alt="Предпросмотр логотипа" class="size-full object-contain p-1">
-              <UIcon v-else name="i-lucide-shield" class="size-6 text-dimmed" />
+              <UIcon v-else name="i-df-no-logo" class="size-6 text-dimmed" />
             </div>
             <UButton as="label" class="cursor-pointer" color="neutral" variant="outline" icon="i-lucide-upload" label="Выбрать файл" :loading="uploadingLogo">
               <input type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml" class="sr-only" @change="uploadLogo">

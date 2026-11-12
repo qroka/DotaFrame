@@ -22,7 +22,11 @@ export default defineNuxtConfig({
     }
   },
   ui: { colorMode: true, fonts: false },
-  icon: { clientBundle: { scan: true } },
+  icon: {
+    clientBundle: { scan: true },
+    // Local icons, e.g. i-df-no-logo (team without a logo); files live in app/assets/icons.
+    customCollections: [{ prefix: 'df', dir: './app/assets/icons' }]
+  },
   nitro: {
     externals: { inline: [/\/src\//] }
   },

@@ -91,7 +91,7 @@ async function importSelected() {
           <li v-for="team in teams" :key="team.externalId">
             <label class="flex cursor-pointer items-center gap-3 px-3 py-2 hover:bg-elevated/50">
               <UCheckbox :model-value="selected.has(team.externalId)" :aria-label="`Выбрать ${team.name}`" @update:model-value="toggle(team, $event)" />
-              <UAvatar :src="logoUrl(team.logoUrl)" :alt="team.name" icon="i-lucide-shield" size="md" :ui="{ image: 'object-contain' }" class="bg-elevated" />
+              <UAvatar :src="logoUrl(team.logoUrl)" :alt="team.name" icon="i-df-no-logo" size="md" :ui="{ image: 'object-contain' }" class="bg-elevated" />
               <div class="min-w-0 flex-1">
                 <div class="truncate font-medium text-highlighted">{{ team.name }}</div>
                 <div class="text-xs text-muted">{{ [team.shortName, team.location].filter(Boolean).join(' · ') || '—' }}</div>

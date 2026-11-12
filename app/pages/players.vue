@@ -96,7 +96,7 @@ async function removePlayer() {
           </template>
           <template #team-cell="{ row }">
             <div v-if="row.original.teamId" class="flex items-center gap-2">
-              <UAvatar :src="teamLogo(row.original)" :alt="teamName(row.original)" icon="i-lucide-shield" size="2xs" :ui="{ image: 'object-contain' }" class="bg-elevated" />
+              <UAvatar :src="teamLogo(row.original)" :alt="teamName(row.original)" icon="i-df-no-logo" size="2xs" :ui="{ image: 'object-contain' }" class="bg-elevated" />
               <span class="truncate">{{ teamName(row.original) }}</span>
             </div>
             <span v-else class="text-muted">—</span>

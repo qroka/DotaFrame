@@ -110,7 +110,7 @@ onMounted(async () => { selectedTeamIds.value = await api.settings.get<string[]>
           <div class="min-w-0 text-center">
             <div class="mx-auto grid size-14 place-items-center overflow-hidden rounded-lg border border-default bg-muted">
               <img v-if="match.teamA?.logoUrl" :src="logoUrl(match.teamA.logoUrl)" :alt="`Логотип ${match.teamA.name}`" class="size-11 object-contain" loading="lazy">
-              <UIcon v-else name="i-lucide-shield" class="size-7 text-dimmed" />
+              <UIcon v-else name="i-df-no-logo" class="size-7 text-dimmed" />
             </div>
             <p class="mt-2 truncate text-sm font-semibold text-highlighted">{{ match.teamA?.name || 'TBD' }}</p>
           </div>
@@ -118,7 +118,7 @@ onMounted(async () => { selectedTeamIds.value = await api.settings.get<string[]>
           <div class="min-w-0 text-center">
             <div class="mx-auto grid size-14 place-items-center overflow-hidden rounded-lg border border-default bg-muted">
               <img v-if="match.teamB?.logoUrl" :src="logoUrl(match.teamB.logoUrl)" :alt="`Логотип ${match.teamB.name}`" class="size-11 object-contain" loading="lazy">
-              <UIcon v-else name="i-lucide-shield" class="size-7 text-dimmed" />
+              <UIcon v-else name="i-df-no-logo" class="size-7 text-dimmed" />
             </div>
             <p class="mt-2 truncate text-sm font-semibold text-highlighted">{{ match.teamB?.name || 'TBD' }}</p>
           </div>
