@@ -8,6 +8,8 @@ export default defineNuxtConfig({
   },
   css: ['~/assets/css/main.css', '~~/src/styles/poster.css'],
   ssr: false,
+  // Local tool without authentication: listen on loopback only (override with --host / NUXT_HOST if you really need LAN access).
+  devServer: { host: '127.0.0.1' },
   app: {
     head: {
       htmlAttrs: { lang: 'ru' },
