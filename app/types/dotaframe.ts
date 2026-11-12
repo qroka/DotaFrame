@@ -14,6 +14,16 @@ export interface ExternalTournament {
   externalId: string; name: string; league: string; tier: TournamentTier
   startDate: string | null; endDate: string | null; logoUrl: string | null; localTournamentId: string | null
 }
+export type PlayerRole = '' | '1' | '2' | '3' | '4' | '5'
+export interface Player {
+  id: string; nickname: string; realName: string; teamId: string | null; role: PlayerRole
+  country: string; notes: string; photoAssetId: string | null; createdAt?: string; updatedAt?: string
+  externalRefs?: ReadonlyArray<{ provider: 'pandascore', externalId: string }>
+}
+export interface ExternalPlayer {
+  externalId: string; nickname: string; realName: string; role: PlayerRole; country: string; photoUrl: string | null
+  team: { externalId: string, name: string } | null; localTeamId: string | null; localPlayerId: string | null
+}
 export interface Match {
   id: string; teamAId: string; teamBId: string; tournament: string; stage: string
   startDate: string; startTime: string; timezone: string; format: string

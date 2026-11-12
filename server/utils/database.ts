@@ -176,6 +176,47 @@ function migrationV4(database: DatabaseSync) {
   `)
 }
 
+function migrationV5(database: DatabaseSync) {
+  database.exec(`
+    CREATE TABLE players (
+      id TEXT PRIMARY KEY,
+      nickname TEXT NOT NULL,
+      real_name TEXT NOT NULL DEFAULT '',
+      team_id TEXT REFERENCES teams(id) ON DELETE SET NULL,
+      role TEXT NOT NULL DEFAULT '',
+      country TEXT NOT NULL DEFAULT '',
+      notes TEXT NOT NULL DEFAULT '',
+      photo_asset_id TEXT REFERENCES media(id) ON DELETE SET NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      CHECK (role IN ('', '1', '2', '3', '4', '5'))
+    );
+    CREATE INDEX players_team_idx ON players(team_id);
+
+    -- SQLite cannot alter a CHECK constraint: rebuild external_entities to allow 'player'.
+    DROP INDEX external_entities_local_idx;
+    ALTER TABLE external_entities RENAME TO external_entities_v4;
+    CREATE TABLE external_entities (
+      id TEXT PRIMARY KEY,
+      provider TEXT NOT NULL,
+      entity_type TEXT NOT NULL,
+      external_id TEXT NOT NULL,
+      local_id TEXT NOT NULL,
+      synced_at TEXT NOT NULL,
+      metadata_json TEXT,
+      UNIQUE(provider, entity_type, external_id),
+      CHECK (provider IN ('pandascore')),
+      CHECK (entity_type IN ('team', 'match', 'game', 'tournament', 'player'))
+    );
+    INSERT INTO external_entities SELECT id, provider, entity_type, external_id, local_id, synced_at, metadata_json FROM external_entities_v4;
+    DROP TABLE external_entities_v4;
+    CREATE INDEX external_entities_local_idx ON external_entities(entity_type, local_id);
+
+    INSERT INTO schema_migrations(version, applied_at)
+    VALUES (5, datetime('now'));
+  `)
+}
+
 function migrate(database: DatabaseSync) {
   database.exec(`
     PRAGMA journal_mode = WAL;
@@ -187,7 +228,7 @@ function migrate(database: DatabaseSync) {
     );
   `)
   const applied = new Set((database.prepare('SELECT version FROM schema_migrations').all() as Array<{ version: number }>).map(row => row.version))
-  for (const [version, migration] of [[1, migrationV1], [2, migrationV2], [3, migrationV3], [4, migrationV4]] as const) {
+  for (const [version, migration] of [[1, migrationV1], [2, migrationV2], [3, migrationV3], [4, migrationV4], [5, migrationV5]] as const) {
     if (applied.has(version)) continue
     database.exec('BEGIN IMMEDIATE')
     try {

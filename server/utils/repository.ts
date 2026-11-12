@@ -31,6 +31,17 @@ const tournamentSchema = z.object({
   logoAssetId: z.string().nullable().default(null)
 }).refine(value => !value.startDate || !value.endDate || value.startDate <= value.endDate, { message: 'Дата окончания раньше даты начала', path: ['endDate'] })
 
+const playerSchema = z.object({
+  id: z.string().nullable().optional(),
+  nickname: z.string().trim().min(1, 'Введите ник игрока').max(40),
+  realName: z.string().trim().max(80).default(''),
+  teamId: z.preprocess(value => value === '' ? null : value, z.string().nullable().default(null)),
+  role: z.enum(['', '1', '2', '3', '4', '5']).default(''),
+  country: z.string().trim().max(40).default(''),
+  notes: z.string().trim().max(500).default(''),
+  photoAssetId: z.string().nullable().default(null)
+})
+
 const matchSchema = z.object({
   id: z.string().nullable().optional(),
   teamAId: z.string().min(1),
@@ -81,6 +92,7 @@ function parse<T>(schema: z.ZodType<T>, input: unknown): T {
 
 const TEAM_COLUMNS = ['id', 'name', 'short_name', 'region', 'notes', 'logo_asset_id', 'created_at', 'updated_at']
 const TOURNAMENT_COLUMNS = ['id', 'name', 'league', 'tier', 'start_date', 'end_date', 'notes', 'logo_asset_id', 'created_at', 'updated_at']
+const PLAYER_COLUMNS = ['id', 'nickname', 'real_name', 'team_id', 'role', 'country', 'notes', 'photo_asset_id', 'created_at', 'updated_at']
 const MATCH_COLUMNS = [
   'id', 'team_a_id', 'team_b_id', 'tournament', 'stage', 'start_date', 'start_time', 'timezone',
   'format', 'status', 'score_a', 'score_b', 'winner_team_id', 'notes', 'created_at', 'updated_at'
@@ -103,6 +115,7 @@ ON CONFLICT (${conflict.join(', ')}) DO UPDATE SET ${updates}`
 const SQL = {
   team: upsertSql('teams', TEAM_COLUMNS, ['id'], ['created_at']),
   tournament: upsertSql('tournaments', TOURNAMENT_COLUMNS, ['id'], ['created_at']),
+  player: upsertSql('players', PLAYER_COLUMNS, ['id'], ['created_at']),
   match: upsertSql('matches', MATCH_COLUMNS, ['id'], ['created_at']),
   project: upsertSql('projects', PROJECT_COLUMNS, ['id'], ['created_at']),
   draft: upsertSql('drafts', DRAFT_COLUMNS, ['match_id', 'map_number'], ['id']),
@@ -122,7 +135,7 @@ const createdAtOf = (table: string, key: string | null | undefined) => key ? one
 type ExternalRef = { provider: unknown, externalId: unknown }
 
 /** External refs of one entity type for all rows (no id) or one row, grouped by local id in a single query. */
-function externalRefs(entityType: 'team' | 'tournament', localId?: string): Map<string, ExternalRef[]> {
+function externalRefs(entityType: 'team' | 'tournament' | 'player', localId?: string): Map<string, ExternalRef[]> {
   const filter = localId ? ' AND local_id = ?' : ''
   const rows = all(`SELECT local_id, provider, external_id FROM external_entities WHERE entity_type = ?${filter} ORDER BY provider`, entityType, ...(localId ? [localId] : []))
   const byLocalId = new Map<string, ExternalRef[]>()
@@ -145,6 +158,14 @@ function toTournament(row: Row, refs: Map<string, ExternalRef[]>) {
   return {
     id: row.id, name: row.name, league: row.league, tier: row.tier, startDate: row.start_date ?? null, endDate: row.end_date ?? null,
     notes: row.notes, logoAssetId: row.logo_asset_id, createdAt: row.created_at, updatedAt: row.updated_at,
+    externalRefs: refs.get(String(row.id)) ?? []
+  }
+}
+
+function toPlayer(row: Row, refs: Map<string, ExternalRef[]>) {
+  return {
+    id: row.id, nickname: row.nickname, realName: row.real_name, teamId: row.team_id ?? null, role: row.role, country: row.country,
+    notes: row.notes, photoAssetId: row.photo_asset_id, createdAt: row.created_at, updatedAt: row.updated_at,
     externalRefs: refs.get(String(row.id)) ?? []
   }
 }
@@ -231,6 +252,38 @@ export const repository = {
       try {
         database.prepare("DELETE FROM external_entities WHERE entity_type = 'tournament' AND local_id = ?").run(key)
         database.prepare('DELETE FROM tournaments WHERE id = ?').run(key)
+        database.exec('COMMIT')
+      } catch (cause) {
+        database.exec('ROLLBACK')
+        throw cause
+      }
+    }
+  },
+
+  players: {
+    list() {
+      const refs = externalRefs('player')
+      return all('SELECT * FROM players ORDER BY nickname COLLATE NOCASE').map(row => toPlayer(row, refs))
+    },
+    get(key: string) {
+      const row = one('SELECT * FROM players WHERE id = ?', key)
+      return row ? toPlayer(row, externalRefs('player', key)) : null
+    },
+    save(input: unknown) {
+      const value = parse(playerSchema, input)
+      if (value.teamId && !one('SELECT id FROM teams WHERE id = ?', value.teamId)) throw createError({ statusCode: 422, statusMessage: 'Команда не найдена' })
+      const key = value.id || id('player')
+      const timestamp = now()
+      const createdAt = createdAtOf('players', value.id) || timestamp
+      useDatabase().prepare(SQL.player).run(key, value.nickname, value.realName, value.teamId, value.role, value.country, value.notes, value.photoAssetId, createdAt, timestamp)
+      return this.get(key)
+    },
+    remove(key: string) {
+      const database = useDatabase()
+      database.exec('BEGIN IMMEDIATE')
+      try {
+        database.prepare("DELETE FROM external_entities WHERE entity_type = 'player' AND local_id = ?").run(key)
+        database.prepare('DELETE FROM players WHERE id = ?').run(key)
         database.exec('COMMIT')
       } catch (cause) {
         database.exec('ROLLBACK')

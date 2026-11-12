@@ -314,6 +314,77 @@ export async function fetchPandaScoreTournamentsByIds(externalIds: string[], opt
   return normalizeSerieList(await requestPandaScoreList(`/dota2/series?${query}`, options))
 }
 
+/* ---------- Players ---------- */
+
+export const externalPlayerSchema = z.object({
+  externalId: z.string(), nickname: z.string(), realName: z.string(), role: z.enum(['', '1', '2', '3', '4', '5']),
+  country: z.string(), photoUrl: z.string().nullable(),
+  team: z.object({ externalId: z.string(), name: z.string() }).nullable()
+})
+export type ExternalPlayer = z.infer<typeof externalPlayerSchema>
+
+export const pandaScorePlayersQuerySchema = z.object({ search: z.string().trim().max(80).default('') })
+export const pandaScorePlayersImportSchema = z.object({
+  externalIds: z.array(z.string().regex(/^\d+$/, 'Некорректный идентификатор игрока PandaScore')).min(1, 'Выберите хотя бы одного игрока').max(100, 'За один раз можно импортировать не более 100 игроков')
+})
+
+const rawPlayerSchema = z.object({
+  id: z.union([z.string(), z.number()]),
+  name: z.string().trim().min(1),
+  first_name: z.string().nullable().optional(),
+  last_name: z.string().nullable().optional(),
+  role: z.union([z.string(), z.number()]).nullable().optional(),
+  nationality: z.string().nullable().optional(),
+  image_url: z.string().nullable().optional(),
+  current_team: z.object({ id: z.union([z.string(), z.number()]), name: z.string() }).passthrough().nullable().optional()
+}).passthrough()
+
+export function normalizePandaScorePlayer(input: unknown): ExternalPlayer {
+  const raw = rawPlayerSchema.parse(input)
+  const role = String(raw.role ?? '').trim()
+  return externalPlayerSchema.parse({
+    externalId: String(raw.id), nickname: raw.name.trim().slice(0, 40),
+    realName: [raw.first_name, raw.last_name].map(part => part?.trim()).filter(Boolean).join(' ').slice(0, 80),
+    role: ['1', '2', '3', '4', '5'].includes(role) ? role : '',
+    country: raw.nationality?.trim().slice(0, 40) || '',
+    photoUrl: raw.image_url?.trim() || null,
+    team: raw.current_team ? { externalId: String(raw.current_team.id), name: raw.current_team.name.trim() } : null
+  })
+}
+
+function normalizePlayerList(body: unknown[]) {
+  const players: ExternalPlayer[] = []
+  for (const item of body) {
+    try { players.push(normalizePandaScorePlayer(item)) } catch { /* Skip malformed players. */ }
+  }
+  return players
+}
+
+/** Search the PandaScore Dota 2 player catalogue by nickname. */
+export async function searchPandaScorePlayers(search: string, options: FetchOptions): Promise<ExternalPlayer[]> {
+  const query = new URLSearchParams({ 'search[name]': search, per_page: '50', sort: 'name' })
+  return normalizePlayerList(await requestPandaScoreList(`/dota2/players?${query}`, options))
+}
+
+/** Current rosters of the given PandaScore teams (reads up to `maxPages` pages of 100 players). */
+export async function fetchPandaScorePlayersByTeams(teamExternalIds: string[], options: FetchOptions, maxPages = 5): Promise<ExternalPlayer[]> {
+  if (!teamExternalIds.length) return []
+  const players: ExternalPlayer[] = []
+  for (let page = 1; page <= maxPages; page++) {
+    const query = new URLSearchParams({ 'filter[team_id]': teamExternalIds.join(','), 'filter[active]': 'true', per_page: '100', page: String(page), sort: 'name' })
+    const body = await requestPandaScoreList(`/dota2/players?${query}`, options)
+    players.push(...normalizePlayerList(body))
+    if (body.length < 100) break
+  }
+  return players
+}
+
+export async function fetchPandaScorePlayersByIds(externalIds: string[], options: FetchOptions): Promise<ExternalPlayer[]> {
+  if (!externalIds.length) return []
+  const query = new URLSearchParams({ 'filter[id]': externalIds.join(','), per_page: '100' })
+  return normalizePlayerList(await requestPandaScoreList(`/dota2/players?${query}`, options))
+}
+
 export async function findPandaScoreMatch(externalMatchId: string, options: FetchOptions): Promise<ExternalMatch> {
   const results = await Promise.allSettled((['running', 'upcoming', 'past'] as const).map(status => fetchPandaScoreMatches(status, options)))
   for (const result of results) {

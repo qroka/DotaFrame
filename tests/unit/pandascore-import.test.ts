@@ -41,7 +41,7 @@ describe('PandaScore SQLite import', () => {
     `)
     legacy.close()
     const database = useDatabase()
-    expect((database.prepare('SELECT max(version) version FROM schema_migrations').get() as any).version).toBe(4)
+    expect((database.prepare('SELECT max(version) version FROM schema_migrations').get() as any).version).toBe(5)
     expect((database.prepare("SELECT count(*) count FROM pragma_table_info('projects') WHERE name = 'dedupe_key'").get() as any).count).toBe(1)
     expect((database.prepare("SELECT count(*) count FROM sqlite_master WHERE type = 'table' AND name = 'match_games'").get() as any).count).toBe(1)
     expect((database.prepare("SELECT count(*) count FROM pragma_table_info('match_games') WHERE name = 'stats_json'").get() as any).count).toBe(1)
@@ -57,7 +57,7 @@ describe('PandaScore SQLite import', () => {
     expect((database.prepare('SELECT count(*) count FROM matches').get() as any).count).toBe(1)
     expect((database.prepare('SELECT count(*) count FROM match_games').get() as any).count).toBe(1)
     expect((database.prepare('SELECT count(*) count FROM media').get() as any).count).toBe(2)
-    expect((database.prepare('SELECT max(version) version FROM schema_migrations').get() as any).version).toBe(4)
+    expect((database.prepare('SELECT max(version) version FROM schema_migrations').get() as any).version).toBe(5)
     expect((database.prepare('SELECT length(bytes) bytes FROM media LIMIT 1').get() as any).bytes).toBe(logo.length)
   })
 

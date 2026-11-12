@@ -22,6 +22,10 @@ export const BACKUP_TABLES = {
     primaryKey: 'id',
     columns: ['id', 'name', 'league', 'tier', 'start_date', 'end_date', 'notes', 'logo_asset_id', 'created_at', 'updated_at']
   },
+  players: {
+    primaryKey: 'id',
+    columns: ['id', 'nickname', 'real_name', 'team_id', 'role', 'country', 'notes', 'photo_asset_id', 'created_at', 'updated_at']
+  },
   matches: {
     primaryKey: 'id',
     columns: [

@@ -3,7 +3,7 @@ import { createError } from 'h3'
 import { z } from 'zod'
 import { useDatabase, json } from './database'
 import { repository } from './repository'
-import type { ExternalMatch, ExternalTeamDetails, ExternalTournament } from './providers/pandascore'
+import type { ExternalMatch, ExternalPlayer, ExternalTeamDetails, ExternalTournament } from './providers/pandascore'
 import { findOpenDotaGame, type OpenDotaEnrichment } from './providers/opendota'
 import { buildDraftData, buildMatchData } from '../../src/domain/snapshot.js'
 import { HEROES_BY_ID } from '../../src/data/heroes.js'
@@ -84,7 +84,7 @@ function externalMetadata(row: Row | undefined) {
   try { return row?.metadata_json ? json<Record<string, unknown>>(String(row.metadata_json)) : {} } catch { return {} }
 }
 
-function upsertExternal(entityType: 'team' | 'match' | 'game' | 'tournament', externalId: string, localId: string, syncedAt: string, metadata: Record<string, unknown> = {}) {
+function upsertExternal(entityType: 'team' | 'match' | 'game' | 'tournament' | 'player', externalId: string, localId: string, syncedAt: string, metadata: Record<string, unknown> = {}) {
   useDatabase().prepare(`INSERT INTO external_entities(id,provider,entity_type,external_id,local_id,synced_at,metadata_json)
     VALUES(?,?,?,?,?,?,?) ON CONFLICT(provider,entity_type,external_id) DO UPDATE SET local_id=excluded.local_id,synced_at=excluded.synced_at,metadata_json=excluded.metadata_json`)
     .run(makeId('ext'), 'pandascore', entityType, externalId, localId, syncedAt, JSON.stringify(metadata))
@@ -212,6 +212,77 @@ export async function importPandaScoreTournaments(tournaments: ExternalTournamen
     throw cause
   }
   return { imported: result, created: result.filter(item => item.created).length, updated: result.filter(item => !item.created).length }
+}
+
+/** Local team linked to a PandaScore team id, if that team is in the directory. */
+export function localTeamIdForPandaScore(externalTeamId: string | null | undefined): string | null {
+  if (!externalTeamId) return null
+  const linked = externalRow('team', externalTeamId)
+  return linked?.local_id ? String(linked.local_id) : null
+}
+
+/**
+ * Local player linked to a PandaScore player, or an unlinked local player with the same nickname
+ * who has no team or plays for the same local team (nicknames alone are not unique across teams).
+ */
+export function findLocalPlayerForPandaScore(externalId: string, nickname: string, localTeamId: string | null): string | null {
+  const linked = externalRow('player', externalId)
+  if (linked?.local_id) return String(linked.local_id)
+  const sameName = useDatabase().prepare(`SELECT id FROM players WHERE lower(nickname) = lower(?) AND (team_id IS NULL OR team_id = ?) AND id NOT IN
+    (SELECT local_id FROM external_entities WHERE provider = 'pandascore' AND entity_type = 'player') ORDER BY team_id IS NULL LIMIT 1`).get(nickname, localTeamId ?? '') as Row | undefined
+  return sameName ? String(sameName.id) : null
+}
+
+function upsertPlayer(player: ExternalPlayer, photo: DownloadedLogo | null, syncedAt: string, existingId: string | null, localTeamId: string | null) {
+  const previousMetadata = externalMetadata(externalRow('player', player.externalId))
+  const existing = existingId ? useDatabase().prepare('SELECT * FROM players WHERE id = ?').get(existingId) as Row | undefined : undefined
+  const key = String(existing?.id || makeId('player'))
+  const timestamp = now()
+  let photoAssetId = existing?.photo_asset_id ? String(existing.photo_asset_id) : null
+  if (photo) {
+    photoAssetId = makeId('asset')
+    useDatabase().prepare('INSERT INTO media(id,kind,mime_type,bytes,name,created_at) VALUES(?,?,?,?,?,?)')
+      .run(photoAssetId, 'player-photo', photo.mimeType, photo.bytes, photo.name, timestamp)
+  }
+  // PandaScore is the source of truth for the current team; a player whose new team is not in the directory becomes teamless.
+  useDatabase().prepare(`INSERT INTO players(id,nickname,real_name,team_id,role,country,notes,photo_asset_id,created_at,updated_at)
+    VALUES(?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET nickname=excluded.nickname,real_name=excluded.real_name,team_id=excluded.team_id,role=excluded.role,country=excluded.country,photo_asset_id=excluded.photo_asset_id,updated_at=excluded.updated_at`)
+    .run(key, player.nickname, player.realName || String(existing?.real_name || ''), localTeamId, player.role || String(existing?.role || ''), player.country || String(existing?.country || ''), String(existing?.notes || ''), photoAssetId, String(existing?.created_at || timestamp), timestamp)
+  upsertExternal('player', player.externalId, key, syncedAt, { photoUrl: photo ? player.photoUrl : previousMetadata.photoUrl ?? null, photoAssetId, teamExternalId: player.team?.externalId ?? null })
+  return key
+}
+
+async function photoForPlayer(player: ExternalPlayer, fetchImpl?: FetchLike) {
+  if (!player.photoUrl) return null
+  if (externalMetadata(externalRow('player', player.externalId)).photoUrl === player.photoUrl) return null
+  try { return await downloadPandaScoreLogo(player.photoUrl, fetchImpl) } catch { return null }
+}
+
+/** Create or update local players from PandaScore, linking them to directory teams and downloading photos. */
+export async function importPandaScorePlayers(players: ExternalPlayer[], options: { fetchImpl?: FetchLike } = {}) {
+  const photos = await Promise.all(players.map(player => photoForPlayer(player, options.fetchImpl)))
+  const database = useDatabase()
+  const syncedAt = now()
+  const result: Array<{ externalId: string, localId: string, created: boolean, teamId: string | null }> = []
+  database.exec('BEGIN IMMEDIATE')
+  try {
+    players.forEach((player, index) => {
+      const teamId = localTeamIdForPandaScore(player.team?.externalId)
+      const existingId = findLocalPlayerForPandaScore(player.externalId, player.nickname, teamId)
+      const localId = upsertPlayer(player, photos[index] ?? null, syncedAt, existingId, teamId)
+      result.push({ externalId: player.externalId, localId, created: !existingId, teamId })
+    })
+    database.exec('COMMIT')
+  } catch (cause) {
+    database.exec('ROLLBACK')
+    throw cause
+  }
+  return {
+    imported: result,
+    created: result.filter(item => item.created).length,
+    updated: result.filter(item => !item.created).length,
+    withoutTeam: result.filter(item => !item.teamId).length
+  }
 }
 
 function scheduleParts(match: ExternalMatch) {
