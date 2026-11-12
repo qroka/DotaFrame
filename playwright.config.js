@@ -31,7 +31,7 @@ export default defineConfig({
       timeout: 30_000,
     },
     {
-      command: `NUXT_IGNORE_LOCK=1 PANDASCORE_TOKEN=e2e-secret PANDASCORE_BASE_URL=http://127.0.0.1:5200 OPENDOTA_BASE_URL=http://127.0.0.1:5200/api DOTAFRAME_DATABASE_PATH=test-results/dotaframe-e2e.sqlite npx nuxt dev --host 127.0.0.1 --port ${PORT}`,
+      command: 'node tests/e2e/dev-server.mjs',
       url: `http://127.0.0.1:${PORT}`,
       reuseExistingServer: !process.env.CI,
       timeout: 120_000,
