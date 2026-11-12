@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { HEROES, HEROES_BY_ID, getHero, searchHeroes, matchHeroFile, heroInitials, heroPortraitUrl, ATTRIBUTES } from '../../src/data/heroes.js';
+import { HEROES, HEROES_BY_ID, getHero, searchHeroes, matchHeroFile, heroInitials, heroPortraitUrl, ATTRIBUTES } from '../../src/data/heroes';
 
 describe('hero catalog', () => {
   it('has a full roster with unique ids, slugs and names', () => {

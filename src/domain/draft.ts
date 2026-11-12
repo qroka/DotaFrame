@@ -4,28 +4,32 @@
  *            bansRadiant[], bansDire[], winner: 'radiant'|'dire'|null }
  * Hero entries are hero ids (numbers) or null for an empty pick slot.
  */
-import { mapsInFormat } from './series.js';
+import type { DraftPosterData, DraftRecord, MatchRecord } from '../types';
+import { mapsInFormat } from './series';
 
 export const PICKS_PER_SIDE = 5;
 export const MAX_BANS_PER_SIDE = 10;
 
-const filled = (arr) => (arr ?? []).filter((v) => v !== null && v !== undefined && v !== '');
+type HeroKey = 'picksRadiant' | 'picksDire' | 'bansRadiant' | 'bansDire';
+const HERO_KEYS: HeroKey[] = ['picksRadiant', 'picksDire', 'bansRadiant', 'bansDire'];
+
+const filled = <T>(arr: Array<T | null | undefined> | null | undefined): T[] => (arr ?? []).filter((v): v is T => v !== null && v !== undefined && (v as unknown) !== '');
 
 /** All hero ids used in picks and bans (with duplicates). */
-export function usedHeroIds(draft) {
+export function usedHeroIds(draft: Partial<DraftRecord> | null | undefined): Array<number | string> {
   return [...filled(draft?.picksRadiant), ...filled(draft?.picksDire), ...filled(draft?.bansRadiant), ...filled(draft?.bansDire)];
 }
 
 /** Where a hero is used on this map: 'picksRadiant' | 'picksDire' | 'bansRadiant' | 'bansDire' | null */
-export function heroLocation(draft, heroId) {
-  for (const key of ['picksRadiant', 'picksDire', 'bansRadiant', 'bansDire']) {
+export function heroLocation(draft: Partial<DraftRecord> | null | undefined, heroId: number | string): HeroKey | null {
+  for (const key of HERO_KEYS) {
     if ((draft?.[key] ?? []).some((v) => v !== null && v !== undefined && String(v) === String(heroId))) return key;
   }
   return null;
 }
 
 /** Swap Radiant and Dire (teams, picks, bans and map winner). */
-export function swapSides(draft) {
+export function swapSides<T extends Partial<DraftRecord>>(draft: T): T {
   const winner = draft.winner === 'radiant' ? 'dire' : draft.winner === 'dire' ? 'radiant' : (draft.winner ?? null);
   return {
     ...draft,
@@ -46,15 +50,16 @@ export function swapSides(draft) {
  *   warnings — the draft is valid but not finished (missing picks)
  *   complete — 5 + 5 unique picks and no errors: ready for a final poster
  */
-export function validateDraft(draft, match) {
-  const errors = [];
-  const warnings = [];
+export function validateDraft(draft: Partial<DraftRecord> | null | undefined, match: Partial<MatchRecord> | null | undefined): { errors: string[]; warnings: string[]; complete: boolean } {
+  const errors: string[] = [];
+  const warnings: string[] = [];
   if (!draft) return { errors: ['Драфт не заполнен'], warnings, complete: false };
 
   if (!match) errors.push('Выберите матч для драфта');
   else {
-    const games = mapsInFormat(match.format);
-    if (!Number.isInteger(draft.mapNumber) || draft.mapNumber < 1 || draft.mapNumber > games) {
+    const games = mapsInFormat(match.format ?? '');
+    const mapNumber = draft.mapNumber;
+    if (!Number.isInteger(mapNumber) || mapNumber! < 1 || mapNumber! > games) {
       errors.push(`Номер карты должен быть от 1 до ${games} для ${match.format}`);
     }
     const teams = [match.teamAId, match.teamBId];
@@ -66,13 +71,13 @@ export function validateDraft(draft, match) {
   for (const [key, label] of [
     ['bansRadiant', 'Radiant'],
     ['bansDire', 'Dire'],
-  ]) {
+  ] as const) {
     if (filled(draft[key]).length > MAX_BANS_PER_SIDE) errors.push(`У ${label} больше ${MAX_BANS_PER_SIDE} банов`);
   }
   for (const [key, label] of [
     ['picksRadiant', 'Radiant'],
     ['picksDire', 'Dire'],
-  ]) {
+  ] as const) {
     if (filled(draft[key]).length > PICKS_PER_SIDE) errors.push(`У ${label} больше ${PICKS_PER_SIDE} пиков`);
   }
 
@@ -89,9 +94,9 @@ export function validateDraft(draft, match) {
 }
 
 /** Convert a draft snapshot (poster data) back to a working GameDraft (hero ids). */
-export function draftFromSnapshot(data) {
-  const ids = (list, fixed) => {
-    const out = (list ?? []).map((h) => (h ? h.heroId : null));
+export function draftFromSnapshot(data: Partial<DraftPosterData> | null | undefined): DraftRecord & { id: string | null; matchId: string | null; radiantTeamId: string; direTeamId: string } {
+  const ids = (list: DraftPosterData['picksRadiant'] | undefined, fixed?: number): Array<number | string | null> => {
+    const out: Array<number | string | null> = (list ?? []).map((h) => (h ? h.heroId : null));
     if (fixed) while (out.length < fixed) out.push(null);
     return fixed ? out.slice(0, fixed) : out.filter((v) => v !== null);
   };
@@ -105,8 +110,8 @@ export function draftFromSnapshot(data) {
     picksDire: ids(data?.picksDire, PICKS_PER_SIDE),
     bansRadiant: ids(data?.bansRadiant),
     bansDire: ids(data?.bansDire),
-    winner: data?.mapWinner ?? null,
+    winner: (data?.mapWinner as 'radiant' | 'dire' | null | undefined) ?? null,
   };
 }
 
-export const isDraftEmpty = (draft) => usedHeroIds(draft).length === 0;
+export const isDraftEmpty = (draft: Partial<DraftRecord> | null | undefined): boolean => usedHeroIds(draft).length === 0;

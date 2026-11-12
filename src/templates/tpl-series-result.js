@@ -6,7 +6,7 @@ import { h } from '../core/dom';
 import { defineTemplate } from './registry.js';
 import { commonSettings, ELEMENTS } from './shared/settings.js';
 import { baseLayers, playerLayer, posterRoot, teamLogo, fitText, socialsBlock, handleBlock, dateLine, tournamentLine, formatLong, displayName } from './shared/primitives.js';
-import { validateScore } from '../domain/series.js';
+import { validateScore } from '../domain/series';
 
 export default defineTemplate({
   id: 'series-result',

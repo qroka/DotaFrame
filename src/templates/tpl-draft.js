@@ -3,7 +3,7 @@
  * map number, tournament, format, optional map winner.
  */
 import { h } from '../core/dom';
-import { heroPortraitUrl } from '../data/heroes.js';
+import { heroPortraitUrl } from '../data/heroes';
 import { defineTemplate } from './registry.js';
 import { commonSettings, ELEMENTS } from './shared/settings.js';
 import { baseLayers, posterRoot, teamLogo, fitText, handleBlock, formatLong, displayName } from './shared/primitives.js';

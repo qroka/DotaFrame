@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { validateScore, finalScores, validateMatch, winnerOf } from '../../src/domain/series.js';
+import { validateScore, finalScores, validateMatch, winnerOf } from '../../src/domain/series';
 
 describe('validateScore', () => {
   it('accepts valid BO3 final scores and finds the winner', () => {

@@ -9,8 +9,8 @@
 import { h, s } from '../../core/dom';
 import { backgroundCss } from './backgrounds.js';
 import { fontStyle, syntheticSkew } from './fonts.js';
-import { FORMATS } from '../../domain/series.js';
-import { formatPosterDate, tzShort } from '../../domain/time.js';
+import { FORMATS } from '../../domain/series';
+import { formatPosterDate, tzShort } from '../../domain/time';
 
 /** Poster root. Sets CSS variables used by poster.css. */
 export function posterRoot(ctx, className, ...children) {

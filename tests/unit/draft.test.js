@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { validateDraft, usedHeroIds, swapSides, heroLocation, draftFromSnapshot, MAX_BANS_PER_SIDE } from '../../src/domain/draft.js';
+import { validateDraft, usedHeroIds, swapSides, heroLocation, draftFromSnapshot, MAX_BANS_PER_SIDE } from '../../src/domain/draft';
 
 const match = { id: 'm1', teamAId: 'a', teamBId: 'b', format: 'BO3' };
 const full = () => ({

@@ -3,7 +3,7 @@
  * placeholder with initials tinted by primary attribute; empty slot for null.
  */
 import { h, s } from '../../core/dom';
-import { heroPortraitUrl } from '../../data/heroes.js';
+import { heroPortraitUrl } from '../../data/heroes';
 import { fitText } from './primitives.js';
 
 export const ATTR_COLORS = {

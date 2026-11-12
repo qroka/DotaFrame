@@ -11,8 +11,9 @@
  * user-supplied immutable MediaAssets override them when present.
  */
 import { matchesQuery } from '../core/utils';
+import type { Hero, HeroAttr } from '../types';
 
-export const ATTRIBUTES = {
+export const ATTRIBUTES: Record<HeroAttr, { id: HeroAttr; label: string; short: string; color: string }> = {
   str: { id: 'str', label: 'Сила', short: 'STR', color: '#e5484d' },
   agi: { id: 'agi', label: 'Ловкость', short: 'AGI', color: '#3ddc84' },
   int: { id: 'int', label: 'Интеллект', short: 'INT', color: '#4f9dff' },
@@ -20,7 +21,7 @@ export const ATTRIBUTES = {
 };
 
 // [id, slug, name, attr, aliases]
-const RAW = [
+const RAW: Array<[number, string, string, HeroAttr, string[]]> = [
   [1, 'antimage', 'Anti-Mage', 'agi', ['AM', 'Антимаг', 'Анти-маг']],
   [2, 'axe', 'Axe', 'str', ['Акс']],
   [3, 'bane', 'Bane', 'all', ['Бейн']],
@@ -149,35 +150,35 @@ const RAW = [
   [145, 'kez', 'Kez', 'agi', ['Кез']], // verify: id 145 (7.37)
 ];
 
-export const HEROES = RAW.map(([id, slug, name, attr, aliases]) => ({ id, slug, name, attr, aliases })).sort((a, b) => a.name.localeCompare(b.name, 'en'));
+export const HEROES: Hero[] = RAW.map(([id, slug, name, attr, aliases]) => ({ id, slug, name, attr, aliases })).sort((a, b) => a.name.localeCompare(b.name, 'en'));
 
-export const HEROES_BY_ID = Object.fromEntries(HEROES.map((h) => [h.id, h]));
+export const HEROES_BY_ID: Record<string | number, Hero | undefined> = Object.fromEntries(HEROES.map((h) => [h.id, h]));
 
-export const getHero = (id) => (id === null || id === undefined ? null : (HEROES_BY_ID[id] ?? HEROES_BY_ID[Number(id)] ?? null));
+export const getHero = (id: number | string | null | undefined): Hero | null => (id === null || id === undefined ? null : (HEROES_BY_ID[id] ?? HEROES_BY_ID[Number(id)] ?? null));
 
-export function searchHeroes(query = '', { attr } = {}) {
+export function searchHeroes(query = '', { attr }: { attr?: HeroAttr | '' } = {}): Hero[] {
   return HEROES.filter((h) => (!attr || h.attr === attr) && matchesQuery([h.name, h.slug.replace(/_/g, ' '), ...h.aliases], query));
 }
 
 /** Initials for placeholder tiles: "Anti-Mage" → "AM", "Io" → "IO". */
-export function heroInitials(hero) {
+export function heroInitials(hero: Pick<Hero, 'name'> | string | null | undefined): string {
   const name = typeof hero === 'string' ? hero : (hero?.name ?? '');
   const parts = name.replace(/'/g, '').split(/[\s-]+/).filter(Boolean);
-  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+  if (parts.length >= 2) return ((parts[0]![0] ?? '') + (parts[1]![0] ?? '')).toUpperCase();
   return name.slice(0, 2).toUpperCase();
 }
 
 /** Public URL for a portrait bundled under public/images/heroes. */
-export function heroPortraitUrl(hero) {
+export function heroPortraitUrl(hero: Pick<Hero, 'slug'> | null | undefined): string | null {
   const slug = String(hero?.slug ?? '').trim();
   return /^[a-z0-9_]+$/.test(slug) ? `/images/heroes/${slug}.png` : null;
 }
 
 /** Normalize a string for file-name matching: lowercase, letters/digits only. */
-const norm = (s) => String(s ?? '').toLowerCase().replace(/[^a-z0-9]/g, '');
+const norm = (s: unknown): string => String(s ?? '').toLowerCase().replace(/[^a-z0-9]/g, '');
 
 const MATCH_INDEX = (() => {
-  const map = new Map();
+  const map = new Map<string, Hero>();
   for (const h of HEROES) {
     map.set(norm(h.slug), h);
     map.set(norm(h.name), h);
@@ -191,7 +192,7 @@ const MATCH_INDEX = (() => {
  * Accepts slug ('antimage.png'), display name ('Anti-Mage.webp'), npc name
  * ('npc_dota_hero_antimage_png.png') or numeric id ('1.png').
  */
-export function matchHeroFile(fileName) {
+export function matchHeroFile(fileName: unknown): Hero | null {
   let base = String(fileName ?? '').replace(/\.[a-z0-9]+$/i, '');
   base = base.replace(/^npc_dota_hero_/i, '').replace(/[_-](png|jpe?g|webp|gif|full|vert|portrait|icon|sb|lg)$/i, '').replace(/[_-](png|jpe?g|webp|full|vert|portrait|icon|sb|lg)$/i, '');
   if (/^\d+$/.test(base.trim())) return getHero(Number(base.trim()));

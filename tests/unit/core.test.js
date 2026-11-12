@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { createStore } from '../../src/editor/store.js';
 import { collectAssetRefs } from '../../src/core/assets';
-import { buildMatchData, snapshotTeam } from '../../src/domain/snapshot.js';
+import { buildMatchData, snapshotTeam } from '../../src/domain/snapshot';
 import { deepMerge, setPath, matchesQuery, slugify } from '../../src/core/utils';
-import { formatPosterDate } from '../../src/domain/time.js';
+import { formatPosterDate } from '../../src/domain/time';
 
 describe('editor store', () => {
   const init = { title: 'A', templateId: 't', data: { x: 1 }, style: { y: 1 }, size: '1080x1080' };

@@ -11,7 +11,7 @@
  */
 import { FONT_OPTIONS } from './fonts.js';
 import { BACKGROUND_OPTIONS } from './backgrounds.js';
-import { DATE_STYLES } from '../../domain/time.js';
+import { DATE_STYLES } from '../../domain/time';
 
 export const GROUPS = {
   theme: 'Тема',

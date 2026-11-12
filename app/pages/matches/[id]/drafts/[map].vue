@@ -36,7 +36,7 @@ function setSideBans(side: string, value: unknown) {
 
 onMounted(async () => {
   try {
-    const [matchValue, bootstrap, stored, heroes] = await Promise.all([api.matches.get(matchId), api.bootstrap(), api.drafts.find(matchId, mapNumber), import('~~/src/data/heroes.js')])
+    const [matchValue, bootstrap, stored, heroes] = await Promise.all([api.matches.get(matchId), api.bootstrap(), api.drafts.find(matchId, mapNumber), import('~~/src/data/heroes')])
     match.value = matchValue; teams.value = bootstrap.teams
     heroOptions.value = heroes.HEROES.map((hero: any) => ({ label: hero.name, value: hero.id }))
     Object.assign(draft, stored || { radiantTeamId: matchValue.teamAId, direTeamId: matchValue.teamBId })

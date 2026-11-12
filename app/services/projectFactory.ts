@@ -1,5 +1,5 @@
 import { api } from './api'
-import { buildMatchData, buildMatchesData, buildDraftData, defaultPerspective, snapshotTeam } from '../../src/domain/snapshot.js'
+import { buildMatchData, buildMatchesData, buildDraftData, defaultPerspective, snapshotTeam } from '../../src/domain/snapshot'
 import { getTemplate, defaultStyle, defaultTexts, normalizeStyle, TEMPLATE_TYPES } from '../../src/templates/index.js'
 import { deepMerge } from '../../src/core/utils'
 import type { Match, PosterProject, PosterTemplate, Team } from '~/types/dotaframe'
@@ -25,7 +25,7 @@ export async function buildData(tpl: PosterTemplate, options: { matchId?: string
   if (tpl.source === 'draft') {
     if (!match) return { ...blankMatchData(texts), kind: 'draft', draftId: null, mapNumber, radiant: snapshotTeam(null), dire: snapshotTeam(null), picksRadiant: [null, null, null, null, null], picksDire: [null, null, null, null, null], bansRadiant: [], bansDire: [], mapWinner: null }
     const draft = await api.drafts.find(match.id, mapNumber) ?? { id: null, matchId: match.id, mapNumber, radiantTeamId: match.teamAId, direTeamId: match.teamBId, picksRadiant: [null, null, null, null, null], picksDire: [null, null, null, null, null], bansRadiant: [], bansDire: [], winner: null, updatedAt: null }
-    const heroes = await import('../../src/data/heroes.js').then(module => module.HEROES_BY_ID ?? {}).catch(() => ({}))
+    const heroes = await import('../../src/data/heroes').then(module => module.HEROES_BY_ID ?? {}).catch(() => ({}))
     return buildDraftData(match, draft, lookups.teamsById, heroes, {}, { texts })
   }
   if (!match) return blankMatchData(texts)

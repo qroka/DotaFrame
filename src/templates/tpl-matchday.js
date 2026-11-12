@@ -7,7 +7,7 @@ import { h } from '../core/dom';
 import { defineTemplate } from './registry.js';
 import { commonSettings, ELEMENTS } from './shared/settings.js';
 import { baseLayers, playerLayer, posterRoot, teamLogo, fitText, handleBlock, formatLong, displayName, hexA } from './shared/primitives.js';
-import { formatPosterDate, weekday, tzShort } from '../domain/time.js';
+import { formatPosterDate, weekday, tzShort } from '../domain/time';
 
 export const MATCHDAY_MAX = 6;
 
