@@ -1,4 +1,4 @@
-import type { ExternalMatch, Match, PosterProject, PublicationPackage, Team } from '~/types/dotaframe'
+import type { ExternalMatch, ExternalTeamDetails, Match, PosterProject, PublicationPackage, Team } from '~/types/dotaframe'
 
 export interface BootstrapData { teams: Team[], matches: Match[], projects: PosterProject[] }
 
@@ -34,6 +34,8 @@ export const api = {
   integrations: {
     pandascore: {
       getMatches: (status: 'upcoming' | 'running' | 'past') => $fetch<{ status: string, matches: ExternalMatch[] }>('/api/integrations/pandascore/matches', { query: { status } }),
+      getTeams: (search = '') => $fetch<{ source: 'active' | 'search', teams: ExternalTeamDetails[] }>('/api/integrations/pandascore/teams', { query: search ? { search } : undefined }),
+      importTeams: (externalIds: string[]) => $fetch<{ created: number, updated: number, imported: Array<{ externalId: string, localId: string, created: boolean }> }>('/api/integrations/pandascore/teams/import', { method: 'POST', body: { externalIds } }),
       importMatch: (externalMatchId: string, teamMappings: Array<{ externalId: string, localId: string }> = []) => $fetch<{ matchId: string, package: PublicationPackage }>('/api/integrations/pandascore/import', { method: 'POST', body: { externalMatchId, teamMappings } })
     }
   },

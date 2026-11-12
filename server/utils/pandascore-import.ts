@@ -3,7 +3,7 @@ import { createError } from 'h3'
 import { z } from 'zod'
 import { useDatabase, json } from './database'
 import { repository } from './repository'
-import type { ExternalMatch } from './providers/pandascore'
+import type { ExternalMatch, ExternalTeamDetails } from './providers/pandascore'
 import { findOpenDotaGame, type OpenDotaEnrichment } from './providers/opendota'
 import { buildDraftData, buildMatchData } from '../../src/domain/snapshot.js'
 import { HEROES_BY_ID } from '../../src/data/heroes.js'
@@ -97,7 +97,7 @@ function uniqueTeamName(name: string, externalId: string) {
 
 interface DownloadedLogo { bytes: Uint8Array, mimeType: string, name: string }
 
-function upsertTeam(team: NonNullable<ExternalMatch['teamA']>, logo: DownloadedLogo | null, syncedAt: string, preferredLocalId?: string) {
+function upsertTeam(team: NonNullable<ExternalMatch['teamA']>, logo: DownloadedLogo | null, syncedAt: string, preferredLocalId?: string, region = '') {
   const linked = externalRow('team', team.externalId)
   const previousMetadata = externalMetadata(linked)
   const existingId = linked?.local_id || preferredLocalId
@@ -112,10 +112,46 @@ function upsertTeam(team: NonNullable<ExternalMatch['teamA']>, logo: DownloadedL
   }
   const name = existing ? team.name : uniqueTeamName(team.name, team.externalId)
   useDatabase().prepare(`INSERT INTO teams(id,name,short_name,region,notes,logo_asset_id,created_at,updated_at)
-    VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,short_name=excluded.short_name,logo_asset_id=excluded.logo_asset_id,updated_at=excluded.updated_at`)
-    .run(key, name, team.shortName || '', String(existing?.region || ''), String(existing?.notes || ''), logoAssetId, String(existing?.created_at || timestamp), timestamp)
+    VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,short_name=excluded.short_name,region=excluded.region,logo_asset_id=excluded.logo_asset_id,updated_at=excluded.updated_at`)
+    .run(key, name, team.shortName || '', String(existing?.region || region || ''), String(existing?.notes || ''), logoAssetId, String(existing?.created_at || timestamp), timestamp)
   upsertExternal('team', team.externalId, key, syncedAt, { logoUrl: logo ? team.logoUrl : previousMetadata.logoUrl ?? null, logoAssetId })
   return key
+}
+
+/** Local team linked to a PandaScore id, or an unlinked local team with the same name. */
+export function findLocalTeamForPandaScore(externalId: string, name: string): string | null {
+  const linked = externalRow('team', externalId)
+  if (linked?.local_id) return String(linked.local_id)
+  const sameName = useDatabase().prepare(`SELECT id FROM teams WHERE lower(name) = lower(?) AND id NOT IN
+    (SELECT local_id FROM external_entities WHERE provider = 'pandascore' AND entity_type = 'team')`).get(name) as Row | undefined
+  return sameName ? String(sameName.id) : null
+}
+
+async function logoForTeam(team: { externalId: string, logoUrl: string | null }, fetchImpl?: FetchLike) {
+  if (!team.logoUrl) return null
+  if (externalMetadata(externalRow('team', team.externalId)).logoUrl === team.logoUrl) return null
+  try { return await downloadPandaScoreLogo(team.logoUrl, fetchImpl) } catch { return null }
+}
+
+/** Create or update local teams from PandaScore records, including logos and region. */
+export async function importPandaScoreTeams(teams: ExternalTeamDetails[], options: { fetchImpl?: FetchLike } = {}) {
+  const logos = await Promise.all(teams.map(team => logoForTeam(team, options.fetchImpl)))
+  const database = useDatabase()
+  const syncedAt = now()
+  const result: Array<{ externalId: string, localId: string, created: boolean }> = []
+  database.exec('BEGIN IMMEDIATE')
+  try {
+    teams.forEach((team, index) => {
+      const existingId = findLocalTeamForPandaScore(team.externalId, team.name)
+      const localId = upsertTeam(team, logos[index] ?? null, syncedAt, existingId ?? undefined, team.location ?? '')
+      result.push({ externalId: team.externalId, localId, created: !existingId })
+    })
+    database.exec('COMMIT')
+  } catch (cause) {
+    database.exec('ROLLBACK')
+    throw cause
+  }
+  return { imported: result, created: result.filter(item => item.created).length, updated: result.filter(item => !item.created).length }
 }
 
 function scheduleParts(match: ExternalMatch) {
@@ -186,13 +222,7 @@ export async function importPandaScoreMatch(match: ExternalMatch, options: {
   enrichOpenDota?: boolean, openDotaApiKey?: string, openDotaFetchImpl?: FetchLike, openDotaBaseUrl?: string
 } = {}) {
   if (!match.teamA || !match.teamB) throw createError({ statusCode: 422, statusMessage: 'Нельзя импортировать матч без двух известных команд' })
-  const teams = [match.teamA, match.teamB]
-  const logos = await Promise.all(teams.map(async team => {
-    if (!team.logoUrl) return null
-    const metadata = externalMetadata(externalRow('team', team.externalId))
-    if (metadata.logoUrl === team.logoUrl) return null
-    try { return await downloadPandaScoreLogo(team.logoUrl, options.fetchImpl) } catch { return null }
-  }))
+  const logos = await Promise.all([match.teamA, match.teamB].map(team => logoForTeam(team, options.fetchImpl)))
   const database = useDatabase()
   const syncedAt = now()
   const enrichmentByGame = new Map<string, OpenDotaEnrichment>()

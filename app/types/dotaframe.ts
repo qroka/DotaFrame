@@ -22,6 +22,7 @@ export interface PosterProject {
 
 export type ExternalMatchStatus = 'scheduled' | 'live' | 'completed' | 'cancelled'
 export interface ExternalTeam { externalId: string; name: string; shortName: string | null; logoUrl: string | null }
+export interface ExternalTeamDetails extends ExternalTeam { location: string | null; localTeamId: string | null }
 export interface ExternalGame {
   externalId: string; mapNumber: number; status: ExternalMatchStatus
   winnerExternalTeamId: string | null; beginAt: string | null; endAt: string | null

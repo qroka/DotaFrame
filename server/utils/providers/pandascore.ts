@@ -21,7 +21,8 @@ const rawGameSchema = z.object({
   status: z.string(),
   position: z.number().int().positive().nullable().optional(),
   winner_id: z.union([z.string(), z.number()]).nullable().optional(),
-  winner: z.object({ id: z.union([z.string(), z.number()]) }).nullable().optional(),
+  // PandaScore sends `winner: { id: null, type: "Team" }` for games that have not been played yet.
+  winner: z.object({ id: z.union([z.string(), z.number()]).nullable().optional() }).passthrough().nullable().optional(),
   begin_at: nullableDate,
   end_at: nullableDate
 }).passthrough()
@@ -144,18 +145,16 @@ interface FetchOptions {
   baseUrl?: string
 }
 
-const cache = new Map<PandaScoreListStatus, { expiresAt: number, data: ExternalMatch[] }>()
-export async function fetchPandaScoreMatches(status: PandaScoreListStatus, options: FetchOptions): Promise<ExternalMatch[]> {
+/** GET a PandaScore list endpoint (path relative to the API root, may include a query) and return its JSON array. */
+async function requestPandaScoreList(path: string, options: FetchOptions): Promise<unknown[]> {
   const token = options.token?.trim()
   if (!token) throw new PandaScoreError('missing_token', 'PANDASCORE_TOKEN не настроен')
-  const cached = cache.get(status)
-  if (!options.force && cached && cached.expiresAt > Date.now()) return structuredClone(cached.data)
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), options.timeoutMs ?? 10_000)
   let response: Response
   try {
     const baseUrl = (options.baseUrl || process.env.PANDASCORE_BASE_URL || 'https://api.pandascore.co').replace(/\/$/, '')
-    response = await (options.fetchImpl ?? fetch)(`${baseUrl}/dota2/matches/${status}`, {
+    response = await (options.fetchImpl ?? fetch)(`${baseUrl}${path}`, {
       headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
       signal: controller.signal
     })
@@ -170,12 +169,76 @@ export async function fetchPandaScoreMatches(status: PandaScoreListStatus, optio
   let body: unknown
   try { body = await response.json() } catch { throw new PandaScoreError('invalid_response', 'PandaScore вернул некорректный JSON') }
   if (!Array.isArray(body)) throw new PandaScoreError('invalid_response', 'PandaScore вернул неожиданный формат данных')
+  return body
+}
+
+const cache = new Map<PandaScoreListStatus, { expiresAt: number, data: ExternalMatch[] }>()
+export async function fetchPandaScoreMatches(status: PandaScoreListStatus, options: FetchOptions): Promise<ExternalMatch[]> {
+  if (!options.token?.trim()) throw new PandaScoreError('missing_token', 'PANDASCORE_TOKEN не настроен')
+  const cached = cache.get(status)
+  if (!options.force && cached && cached.expiresAt > Date.now()) return structuredClone(cached.data)
+  const body = await requestPandaScoreList(`/dota2/matches/${status}`, options)
   const data: ExternalMatch[] = []
   for (const item of body) {
     try { data.push(normalizePandaScoreMatch(item)) } catch { /* One malformed match must not break the list. */ }
   }
   cache.set(status, { expiresAt: Date.now() + 45_000, data })
   return structuredClone(data)
+}
+
+export const externalTeamDetailsSchema = externalTeamSchema.extend({ location: z.string().nullable() })
+export type ExternalTeamDetails = z.infer<typeof externalTeamDetailsSchema>
+
+export const pandaScoreTeamsQuerySchema = z.object({ search: z.string().trim().max(80).default('') })
+export const pandaScoreTeamsImportSchema = z.object({
+  externalIds: z.array(z.string().regex(/^\d+$/, 'Некорректный идентификатор команды PandaScore')).min(1, 'Выберите хотя бы одну команду').max(50, 'За один раз можно импортировать не более 50 команд')
+})
+
+export function normalizePandaScoreTeam(input: unknown): ExternalTeamDetails {
+  const raw = rawTeamSchema.extend({ location: z.string().nullable().optional() }).parse(input)
+  return externalTeamDetailsSchema.parse({
+    externalId: String(raw.id), name: raw.name.trim(),
+    shortName: raw.acronym?.trim() || null,
+    logoUrl: raw.image_url?.trim() || null,
+    location: raw.location?.trim() || null
+  })
+}
+
+function normalizeTeamList(body: unknown[]) {
+  const teams: ExternalTeamDetails[] = []
+  for (const item of body) {
+    try { teams.push(normalizePandaScoreTeam(item)) } catch { /* Skip malformed team records. */ }
+  }
+  return teams
+}
+
+/** Search the PandaScore Dota 2 team catalogue by name. */
+export async function searchPandaScoreTeams(search: string, options: FetchOptions): Promise<ExternalTeamDetails[]> {
+  const query = new URLSearchParams({ 'search[name]': search, per_page: '50', sort: 'name' })
+  return normalizeTeamList(await requestPandaScoreList(`/dota2/teams?${query}`, options))
+}
+
+/** Load full team records (with region) for the given PandaScore team ids. */
+export async function fetchPandaScoreTeamsByIds(externalIds: string[], options: FetchOptions): Promise<ExternalTeamDetails[]> {
+  if (!externalIds.length) return []
+  const query = new URLSearchParams({ 'filter[id]': externalIds.join(','), per_page: '100' })
+  return normalizeTeamList(await requestPandaScoreList(`/dota2/teams?${query}`, options))
+}
+
+/** Teams that play in live and upcoming matches, ordered by the nearest match. */
+export async function fetchActivePandaScoreTeams(options: FetchOptions): Promise<ExternalTeamDetails[]> {
+  const [running, upcoming] = await Promise.all([fetchPandaScoreMatches('running', options), fetchPandaScoreMatches('upcoming', options)])
+  const seen = new Map<string, ExternalTeamDetails>()
+  for (const match of [...running, ...upcoming]) {
+    for (const team of [match.teamA, match.teamB]) {
+      if (team && !seen.has(team.externalId)) seen.set(team.externalId, { ...team, location: null })
+    }
+  }
+  if (!seen.size) return []
+  // Match payloads omit the team region, so enrich it with one catalogue request.
+  const details = await fetchPandaScoreTeamsByIds([...seen.keys()], options).catch(() => [])
+  for (const team of details) if (seen.has(team.externalId)) seen.set(team.externalId, team)
+  return [...seen.values()]
 }
 
 export async function findPandaScoreMatch(externalMatchId: string, options: FetchOptions): Promise<ExternalMatch> {

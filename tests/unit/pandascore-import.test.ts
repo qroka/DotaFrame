@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { closeDatabase, useDatabase } from '../../server/utils/database'
-import { createPackageProjects, getPublicationPackage, importPandaScoreMatch } from '../../server/utils/pandascore-import'
+import { createPackageProjects, findLocalTeamForPandaScore, getPublicationPackage, importPandaScoreMatch, importPandaScoreTeams } from '../../server/utils/pandascore-import'
 import { normalizePandaScoreMatch } from '../../server/utils/providers/pandascore'
 import { repository } from '../../server/utils/repository'
 
@@ -118,5 +118,43 @@ describe('PandaScore SQLite import', () => {
     repository.drafts.save({ ...draft, picksRadiant: [101, 102, 103, 104, 105], source: { provider: 'manual' } })
     await importPandaScoreMatch(match, { fetchImpl: logoFetch, openDotaFetchImpl: openDotaFetch })
     expect((repository.drafts.find(imported.matchId, 1) as any).picksRadiant).toEqual([101, 102, 103, 104, 105])
+  })
+})
+
+describe('PandaScore team import', () => {
+  const alpha = { externalId: '10', name: 'Alpha', shortName: 'ALP', logoUrl: 'https://cdn.pandascore.co/alpha.png', location: 'NL' }
+  const beta = { externalId: '20', name: 'Beta', shortName: null, logoUrl: null, location: null }
+
+  it('creates teams with logo and region once, then updates them in place', async () => {
+    const first = await importPandaScoreTeams([alpha, beta], { fetchImpl: logoFetch })
+    expect(first).toMatchObject({ created: 2, updated: 0 })
+    const second = await importPandaScoreTeams([alpha], { fetchImpl: logoFetch })
+    expect(second).toMatchObject({ created: 0, updated: 1 })
+    expect(second.imported[0]!.localId).toBe(first.imported[0]!.localId)
+    const database = useDatabase()
+    expect((database.prepare('SELECT count(*) count FROM teams').get() as any).count).toBe(2)
+    expect((database.prepare('SELECT count(*) count FROM media').get() as any).count).toBe(1)
+    const team = repository.teams.get(first.imported[0]!.localId) as any
+    expect(team).toMatchObject({ name: 'Alpha', shortName: 'ALP', region: 'NL' })
+    expect(team.logoAssetId).toBeTruthy()
+    expect(team.externalRefs).toEqual([{ provider: 'pandascore', externalId: '10' }])
+  })
+
+  it('links an existing manual team with the same name instead of duplicating it', async () => {
+    const manual = repository.teams.save({ name: 'alpha', shortName: '', region: 'Европа', notes: 'своя', logoAssetId: null }) as any
+    const result = await importPandaScoreTeams([alpha], { fetchImpl: logoFetch })
+    expect(result).toMatchObject({ created: 0, updated: 1 })
+    expect(result.imported[0]!.localId).toBe(manual.id)
+    expect(findLocalTeamForPandaScore('10', 'Alpha')).toBe(manual.id)
+    const team = repository.teams.get(manual.id) as any
+    expect(team).toMatchObject({ name: 'Alpha', region: 'Европа', notes: 'своя' })
+  })
+
+  it('reuses imported teams when a match with them is imported later', async () => {
+    const teams = await importPandaScoreTeams([alpha, beta], { fetchImpl: logoFetch })
+    const imported = await importPandaScoreMatch(normalizePandaScoreMatch(raw()), { fetchImpl: logoFetch })
+    const match = repository.matches.get(imported.matchId) as any
+    expect([match.teamAId, match.teamBId]).toEqual(teams.imported.map(item => item.localId))
+    expect((useDatabase().prepare('SELECT count(*) count FROM teams').get() as any).count).toBe(2)
   })
 })

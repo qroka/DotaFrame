@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   PandaScoreError, clearPandaScoreCache, fetchPandaScoreMatches,
-  normalizeBestOf, normalizePandaScoreMatch, normalizePandaScoreStatus
+  fetchActivePandaScoreTeams, normalizeBestOf, normalizePandaScoreMatch, normalizePandaScoreStatus, pandaScoreTeamsImportSchema, searchPandaScoreTeams
 } from '../../server/utils/providers/pandascore'
 
 const rawMatch = (patch: Record<string, unknown> = {}) => ({
@@ -28,6 +28,12 @@ describe('PandaScore normalization', () => {
     expect(match.teamA).toMatchObject({ externalId: '10', shortName: 'ALP' })
     expect(match.games[0]).toMatchObject({ status: 'completed', winnerExternalTeamId: '10' })
   })
+  it('accepts an unplayed game whose winner object has a null id', () => {
+    const match = normalizePandaScoreMatch(rawMatch({ status: 'not_started', winner_id: null, games: [{ id: 50, position: 1, status: 'not_started', winner_id: null, winner: { id: null, type: 'Team' }, begin_at: null, end_at: null }] }))
+    expect(match.status).toBe('scheduled')
+    expect(match.games[0]).toMatchObject({ status: 'scheduled', winnerExternalTeamId: null })
+  })
+
   it('ignores winner_id for a canceled match and game', () => {
     const match = normalizePandaScoreMatch(rawMatch({ status: 'canceled', games: [{ id: 50, position: 1, status: 'canceled', winner_id: 10 }] }))
     expect(match.winnerExternalTeamId).toBeNull()
@@ -61,5 +67,33 @@ describe('PandaScore fetch adapter', () => {
   })
   it('rejects a missing token before fetch', async () => {
     await expect(fetchPandaScoreMatches('upcoming', { token: '' })).rejects.toBeInstanceOf(PandaScoreError)
+  })
+})
+
+describe('PandaScore teams', () => {
+  const okList = (body: unknown[]) => vi.fn(async (_url: unknown) => new Response(JSON.stringify(body), { status: 200, headers: { 'content-type': 'application/json' } })) as any
+
+  it('normalizes a catalogue team with region and skips malformed ones', async () => {
+    const fetchImpl = okList([{ id: 1647, name: ' Team Liquid ', acronym: 'Liquid', location: 'NL', image_url: 'https://cdn-api.pandascore.co/l.png' }, { id: 2, name: '' }])
+    const teams = await searchPandaScoreTeams('liquid', { token: 't', fetchImpl })
+    expect(teams).toEqual([{ externalId: '1647', name: 'Team Liquid', shortName: 'Liquid', logoUrl: 'https://cdn-api.pandascore.co/l.png', location: 'NL' }])
+    expect(String(fetchImpl.mock.calls[0][0])).toContain('/dota2/teams?search%5Bname%5D=liquid')
+  })
+
+  it('collects unique teams from live and upcoming matches and enriches their region', async () => {
+    const fetchImpl = vi.fn(async (url: unknown) => {
+      const path = String(url)
+      const body = path.includes('/teams') ? [{ id: 10, name: 'Alpha', acronym: 'ALP', location: 'SE', image_url: null }]
+        : path.includes('/upcoming') ? [rawMatch({ id: 1 }), rawMatch({ id: 2 })] : []
+      return new Response(JSON.stringify(body), { status: 200 })
+    }) as any
+    const teams = await fetchActivePandaScoreTeams({ token: 't', fetchImpl })
+    expect(teams.map(team => [team.externalId, team.location])).toEqual([['10', 'SE'], ['20', null]])
+  })
+
+  it('validates the import request size', () => {
+    expect(pandaScoreTeamsImportSchema.safeParse({ externalIds: [] }).success).toBe(false)
+    expect(pandaScoreTeamsImportSchema.safeParse({ externalIds: ['1647'] }).success).toBe(true)
+    expect(pandaScoreTeamsImportSchema.safeParse({ externalIds: ['x'] }).success).toBe(false)
   })
 })

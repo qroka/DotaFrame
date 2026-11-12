@@ -10,6 +10,7 @@ const { teams, loading, refresh } = useDotaFrameDb()
 const toast = useToast()
 const query = shallowRef('')
 const modalOpen = shallowRef(false)
+const importOpen = shallowRef(false)
 const selected = shallowRef<Team | null>(null)
 const confirmOpen = shallowRef(false)
 const pendingDelete = shallowRef<Team | null>(null)
@@ -41,7 +42,10 @@ async function removeTeam() {
   <UDashboardPanel>
     <template #header>
       <AppPageHeader title="Команды" description="Справочник логотипов и названий участников">
-        <template #actions><UButton label="Добавить команду" icon="i-lucide-plus" @click="createTeam" /></template>
+        <template #actions>
+          <UButton label="Загрузить из PandaScore" icon="i-lucide-cloud-download" color="neutral" variant="outline" @click="importOpen = true" />
+          <UButton label="Добавить команду" icon="i-lucide-plus" @click="createTeam" />
+        </template>
       </AppPageHeader>
       <UDashboardToolbar>
         <template #left><UInput v-model="query" icon="i-lucide-search" placeholder="Найти команду…" class="w-full sm:w-72" /></template>
@@ -52,7 +56,18 @@ async function removeTeam() {
       <USkeleton v-if="loading" class="h-72 w-full" />
       <UCard v-else-if="filtered.length" :ui="{ body: 'p-0 sm:p-0' }">
         <UTable :data="filtered" :columns="columns">
-          <template #name-cell="{ row }"><div class="font-medium text-highlighted">{{ row.original.name }}</div><div v-if="row.original.notes" class="max-w-md truncate text-xs text-muted">{{ row.original.notes }}</div></template>
+          <template #name-cell="{ row }">
+            <div class="flex items-center gap-3">
+              <UAvatar :src="row.original.logoAssetId ? `/api/media/${row.original.logoAssetId}` : undefined" :alt="row.original.name" icon="i-lucide-shield" size="sm" :ui="{ image: 'object-contain' }" class="bg-elevated" />
+              <div class="min-w-0">
+                <div class="flex items-center gap-2 font-medium text-highlighted">
+                  {{ row.original.name }}
+                  <UBadge v-if="row.original.externalRefs?.some(ref => ref.provider === 'pandascore')" label="PandaScore" color="primary" variant="subtle" size="sm" />
+                </div>
+                <div v-if="row.original.notes" class="max-w-md truncate text-xs text-muted">{{ row.original.notes }}</div>
+              </div>
+            </div>
+          </template>
           <template #shortName-cell="{ row }"><UBadge :label="row.original.shortName || '—'" color="neutral" variant="subtle" /></template>
           <template #region-cell="{ row }"><span class="text-muted">{{ row.original.region || '—' }}</span></template>
           <template #actions-cell="{ row }">
@@ -68,6 +83,7 @@ async function removeTeam() {
     </template>
   </UDashboardPanel>
   <TeamsTeamFormModal v-model:open="modalOpen" :team="selected" @saved="refresh" />
+  <PandascorePandaScoreTeamsModal v-model:open="importOpen" @imported="refresh" />
   <UModal v-model:open="confirmOpen" title="Удалить команду?" :description="pendingDelete ? `Команда «${pendingDelete.name}» будет удалена.` : ''">
     <template #footer="{ close }"><div class="flex w-full justify-end gap-2"><UButton label="Отмена" color="neutral" variant="outline" @click="close" /><UButton label="Удалить" color="error" icon="i-lucide-trash-2" @click="removeTeam" /></div></template>
   </UModal>
