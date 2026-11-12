@@ -6,6 +6,7 @@ const { error } = useDotaFrameDb()
 const navigation = computed<NavigationMenuItem[][]>(() => [[
   { label: 'Обзор', icon: 'i-lucide-layout-dashboard', to: '/', active: route.path === '/' },
   { label: 'Команды', icon: 'i-lucide-shield', to: '/teams', active: route.path.startsWith('/teams') },
+  { label: 'Турниры', icon: 'i-lucide-trophy', to: '/tournaments', active: route.path.startsWith('/tournaments') },
   { label: 'Матчи', icon: 'i-lucide-swords', to: '/matches', active: route.path.startsWith('/matches') },
   { label: 'Публикации', icon: 'i-lucide-images', to: '/projects', active: route.path.startsWith('/projects') },
   { label: 'Шаблоны', icon: 'i-lucide-layout-template', to: '/templates', active: route.path.startsWith('/templates') }

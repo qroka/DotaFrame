@@ -1,6 +1,6 @@
 import { onMounted, readonly } from 'vue'
 import { api } from '~/services/api'
-import type { Match, PosterProject, Team } from '~/types/dotaframe'
+import type { Match, PosterProject, Team, Tournament } from '~/types/dotaframe'
 
 let bootPromise: Promise<void> | null = null
 
@@ -9,11 +9,12 @@ export function useDotaFrameDb() {
   const loading = useState('db-loading', () => false)
   const error = useState<string | null>('db-error', () => null)
   const teamsState = useState<Team[]>('db-teams', () => [])
+  const tournamentsState = useState<Tournament[]>('db-tournaments', () => [])
   const matchesState = useState<Match[]>('db-matches', () => [])
   const projectsState = useState<PosterProject[]>('db-projects', () => [])
   async function refreshAll() {
     const data = await api.bootstrap()
-    teamsState.value = data.teams; matchesState.value = data.matches; projectsState.value = data.projects
+    teamsState.value = data.teams; tournamentsState.value = data.tournaments ?? []; matchesState.value = data.matches; projectsState.value = data.projects
   }
   async function initialize() {
     if (ready.value) return
@@ -25,7 +26,7 @@ export function useDotaFrameDb() {
   onMounted(() => initialize().catch(() => {}))
   return {
     ready: readonly(ready), loading: readonly(loading), error: readonly(error),
-    teams: readonly(teamsState), matches: readonly(matchesState), projects: readonly(projectsState),
+    teams: readonly(teamsState), tournaments: readonly(tournamentsState), matches: readonly(matchesState), projects: readonly(projectsState),
     initialize, refresh: refreshAll
   }
 }

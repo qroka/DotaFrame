@@ -40,7 +40,7 @@ test('PandaScore match import, package readiness, sync and deduplication', async
   expect(bootstrap.matches.filter(match => match.tournament === 'Dota League')).toHaveLength(1)
 
   const backup = await (await request.get('/api/backup')).json()
-  expect(backup.version).toBe(3)
+  expect(backup.version).toBe(4)
   expect(backup.data.external_entities.length).toBeGreaterThan(0)
   expect(backup.data.match_games).toHaveLength(1)
   expect(JSON.stringify(backup)).not.toContain('e2e-secret')

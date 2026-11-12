@@ -6,7 +6,7 @@ import type { Match } from '~/types/dotaframe'
 import { api, apiError } from '~/services/api'
 
 const props = defineProps<{ matchId?: string }>()
-const { teams, initialize, refresh } = useDotaFrameDb()
+const { teams, tournaments, initialize, refresh } = useDotaFrameDb()
 const toast = useToast()
 const loading = shallowRef(true)
 const saving = shallowRef(false)
@@ -72,7 +72,7 @@ async function submit(event: FormSubmitEvent<any>) {
     <section>
       <h2 class="mb-4 text-base font-semibold text-highlighted">Турнир и расписание</h2>
       <div class="grid gap-4 md:grid-cols-2">
-        <UFormField name="tournament" label="Турнир" required><UInput v-model="state.tournament" class="w-full" /></UFormField>
+        <UFormField name="tournament" label="Турнир" required><UInput v-model="state.tournament" class="w-full" list="match-tournament-options" autocomplete="off" /><datalist id="match-tournament-options"><option v-for="item in tournaments" :key="item.id" :value="item.name" /></datalist></UFormField>
         <UFormField name="stage" label="Стадия"><UInput v-model="state.stage" class="w-full" placeholder="Групповой этап" /></UFormField>
         <UFormField name="startDate" label="Дата" required><UInput v-model="state.startDate" type="date" class="w-full" /></UFormField>
         <UFormField name="startTime" label="Время" required><UInput v-model="state.startTime" type="time" class="w-full" /></UFormField>

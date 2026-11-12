@@ -241,6 +241,79 @@ export async function fetchActivePandaScoreTeams(options: FetchOptions): Promise
   return [...seen.values()]
 }
 
+/* ---------- Tournaments (PandaScore "series": a league season such as "The International 2026") ---------- */
+
+const TIERS = ['S', 'A', 'B', 'C', 'D'] as const
+export const externalTournamentSchema = z.object({
+  externalId: z.string(), name: z.string(), league: z.string(), tier: z.enum(['', ...TIERS]),
+  startDate: z.string().nullable(), endDate: z.string().nullable(), logoUrl: z.string().nullable()
+})
+export type ExternalTournament = z.infer<typeof externalTournamentSchema>
+
+export const pandaScoreTournamentsQuerySchema = z.object({
+  status: pandaScoreListStatusSchema.default('running'),
+  search: z.string().trim().max(80).default('')
+})
+export const pandaScoreTournamentsImportSchema = z.object({
+  externalIds: z.array(z.string().regex(/^\d+$/, 'Некорректный идентификатор турнира PandaScore')).min(1, 'Выберите хотя бы один турнир').max(50, 'За один раз можно импортировать не более 50 турниров')
+})
+
+const rawSerieSchema = z.object({
+  id: z.union([z.string(), z.number()]),
+  name: z.string().nullable().optional(),
+  full_name: z.string().nullable().optional(),
+  begin_at: nullableDate,
+  end_at: nullableDate,
+  league: z.object({ name: z.string().nullable().optional(), image_url: z.string().nullable().optional() }).passthrough().nullable().optional(),
+  tournaments: z.array(z.object({ tier: z.string().nullable().optional() }).passthrough()).nullable().optional()
+}).passthrough()
+
+const dateOnly = (value: string | null | undefined) => iso(value)?.slice(0, 10) ?? null
+
+/** Best (highest) tier among the stages; PandaScore marks tiers per stage, not per series. */
+function serieTier(stages: Array<{ tier?: string | null }> | null | undefined): ExternalTournament['tier'] {
+  const tiers = (stages ?? []).map(stage => stage.tier?.trim().toUpperCase()).filter((tier): tier is typeof TIERS[number] => (TIERS as readonly string[]).includes(tier ?? ''))
+  return tiers.sort((a, b) => TIERS.indexOf(a) - TIERS.indexOf(b))[0] ?? ''
+}
+
+export function normalizePandaScoreSerie(input: unknown): ExternalTournament {
+  const raw = rawSerieSchema.parse(input)
+  const league = raw.league?.name?.trim() || ''
+  const season = raw.full_name?.trim() || raw.name?.trim() || ''
+  const name = [league, season].filter(Boolean).join(' ') || `PandaScore ${raw.id}`
+  return externalTournamentSchema.parse({
+    externalId: String(raw.id), name: name.slice(0, 120), league: league.slice(0, 80), tier: serieTier(raw.tournaments),
+    startDate: dateOnly(raw.begin_at), endDate: dateOnly(raw.end_at), logoUrl: raw.league?.image_url?.trim() || null
+  })
+}
+
+function normalizeSerieList(body: unknown[]) {
+  const tournaments: ExternalTournament[] = []
+  for (const item of body) {
+    try { tournaments.push(normalizePandaScoreSerie(item)) } catch { /* Skip malformed series. */ }
+  }
+  return tournaments
+}
+
+/** Running, upcoming or past tournaments; `search` matches league and season names via the series slug. */
+export async function fetchPandaScoreTournaments(status: PandaScoreListStatus, search: string, options: FetchOptions): Promise<ExternalTournament[]> {
+  const slug = search.toLocaleLowerCase('en').normalize('NFKD').replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-+|-+$/g, '')
+  const query = new URLSearchParams({ per_page: '50' })
+  if (slug) {
+    query.set('search[slug]', slug)
+    query.set('sort', '-begin_at')
+    return normalizeSerieList(await requestPandaScoreList(`/dota2/series?${query}`, options))
+  }
+  query.set('sort', status === 'past' ? '-end_at' : 'begin_at')
+  return normalizeSerieList(await requestPandaScoreList(`/dota2/series/${status}?${query}`, options))
+}
+
+export async function fetchPandaScoreTournamentsByIds(externalIds: string[], options: FetchOptions): Promise<ExternalTournament[]> {
+  if (!externalIds.length) return []
+  const query = new URLSearchParams({ 'filter[id]': externalIds.join(','), per_page: '100' })
+  return normalizeSerieList(await requestPandaScoreList(`/dota2/series?${query}`, options))
+}
+
 export async function findPandaScoreMatch(externalMatchId: string, options: FetchOptions): Promise<ExternalMatch> {
   const results = await Promise.allSettled((['running', 'upcoming', 'past'] as const).map(status => fetchPandaScoreMatches(status, options)))
   for (const result of results) {

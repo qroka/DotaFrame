@@ -3,6 +3,17 @@ export interface Team {
   logoAssetId: string | null; createdAt?: string; updatedAt?: string
   externalRefs?: ReadonlyArray<{ provider: 'pandascore', externalId: string }>
 }
+export type TournamentTier = '' | 'S' | 'A' | 'B' | 'C' | 'D'
+export interface Tournament {
+  id: string; name: string; league: string; tier: TournamentTier
+  startDate: string | null; endDate: string | null; notes: string
+  logoAssetId: string | null; createdAt?: string; updatedAt?: string
+  externalRefs?: ReadonlyArray<{ provider: 'pandascore', externalId: string }>
+}
+export interface ExternalTournament {
+  externalId: string; name: string; league: string; tier: TournamentTier
+  startDate: string | null; endDate: string | null; logoUrl: string | null; localTournamentId: string | null
+}
 export interface Match {
   id: string; teamAId: string; teamBId: string; tournament: string; stage: string
   startDate: string; startTime: string; timezone: string; format: string

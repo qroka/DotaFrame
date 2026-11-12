@@ -19,6 +19,18 @@ const teamSchema = z.object({
   logoAssetId: z.string().nullable().default(null)
 })
 
+const optionalDate = z.preprocess(value => value === '' ? null : value, z.iso.date().nullable().default(null))
+const tournamentSchema = z.object({
+  id: z.string().nullable().optional(),
+  name: z.string().trim().min(1, 'Введите название турнира').max(120),
+  league: z.string().trim().max(80).default(''),
+  tier: z.enum(['', 'S', 'A', 'B', 'C', 'D']).default(''),
+  startDate: optionalDate,
+  endDate: optionalDate,
+  notes: z.string().trim().max(500).default(''),
+  logoAssetId: z.string().nullable().default(null)
+}).refine(value => !value.startDate || !value.endDate || value.startDate <= value.endDate, { message: 'Дата окончания раньше даты начала', path: ['endDate'] })
+
 const matchSchema = z.object({
   id: z.string().nullable().optional(),
   teamAId: z.string().min(1),
@@ -68,6 +80,7 @@ function parse<T>(schema: z.ZodType<T>, input: unknown): T {
 /* ---------- SQL helpers ---------- */
 
 const TEAM_COLUMNS = ['id', 'name', 'short_name', 'region', 'notes', 'logo_asset_id', 'created_at', 'updated_at']
+const TOURNAMENT_COLUMNS = ['id', 'name', 'league', 'tier', 'start_date', 'end_date', 'notes', 'logo_asset_id', 'created_at', 'updated_at']
 const MATCH_COLUMNS = [
   'id', 'team_a_id', 'team_b_id', 'tournament', 'stage', 'start_date', 'start_time', 'timezone',
   'format', 'status', 'score_a', 'score_b', 'winner_team_id', 'notes', 'created_at', 'updated_at'
@@ -89,6 +102,7 @@ ON CONFLICT (${conflict.join(', ')}) DO UPDATE SET ${updates}`
 
 const SQL = {
   team: upsertSql('teams', TEAM_COLUMNS, ['id'], ['created_at']),
+  tournament: upsertSql('tournaments', TOURNAMENT_COLUMNS, ['id'], ['created_at']),
   match: upsertSql('matches', MATCH_COLUMNS, ['id'], ['created_at']),
   project: upsertSql('projects', PROJECT_COLUMNS, ['id'], ['created_at']),
   draft: upsertSql('drafts', DRAFT_COLUMNS, ['match_id', 'map_number'], ['id']),
@@ -107,22 +121,30 @@ const createdAtOf = (table: string, key: string | null | undefined) => key ? one
 
 type ExternalRef = { provider: unknown, externalId: unknown }
 
-/** Team external refs for all teams (no argument) or one team, grouped by local id in a single query. */
-function teamRefs(localId?: string): Map<string, ExternalRef[]> {
+/** External refs of one entity type for all rows (no id) or one row, grouped by local id in a single query. */
+function externalRefs(entityType: 'team' | 'tournament', localId?: string): Map<string, ExternalRef[]> {
   const filter = localId ? ' AND local_id = ?' : ''
-  const rows = all(`SELECT local_id, provider, external_id FROM external_entities WHERE entity_type = 'team'${filter} ORDER BY provider`, ...(localId ? [localId] : []))
-  const byTeam = new Map<string, ExternalRef[]>()
+  const rows = all(`SELECT local_id, provider, external_id FROM external_entities WHERE entity_type = ?${filter} ORDER BY provider`, entityType, ...(localId ? [localId] : []))
+  const byLocalId = new Map<string, ExternalRef[]>()
   for (const row of rows) {
     const key = String(row.local_id)
-    byTeam.set(key, [...(byTeam.get(key) ?? []), { provider: row.provider, externalId: row.external_id }])
+    byLocalId.set(key, [...(byLocalId.get(key) ?? []), { provider: row.provider, externalId: row.external_id }])
   }
-  return byTeam
+  return byLocalId
 }
 
 function toTeam(row: Row, refs: Map<string, ExternalRef[]>) {
   return {
     id: row.id, name: row.name, shortName: row.short_name, region: row.region, notes: row.notes,
     logoAssetId: row.logo_asset_id, createdAt: row.created_at, updatedAt: row.updated_at,
+    externalRefs: refs.get(String(row.id)) ?? []
+  }
+}
+
+function toTournament(row: Row, refs: Map<string, ExternalRef[]>) {
+  return {
+    id: row.id, name: row.name, league: row.league, tier: row.tier, startDate: row.start_date ?? null, endDate: row.end_date ?? null,
+    notes: row.notes, logoAssetId: row.logo_asset_id, createdAt: row.created_at, updatedAt: row.updated_at,
     externalRefs: refs.get(String(row.id)) ?? []
   }
 }
@@ -154,12 +176,12 @@ function toDraft(row: Row) {
 export const repository = {
   teams: {
     list() {
-      const refs = teamRefs()
+      const refs = externalRefs('team')
       return all('SELECT * FROM teams ORDER BY name COLLATE NOCASE').map(row => toTeam(row, refs))
     },
     get(key: string) {
       const row = one('SELECT * FROM teams WHERE id = ?', key)
-      return row ? toTeam(row, teamRefs(key)) : null
+      return row ? toTeam(row, externalRefs('team', key)) : null
     },
     save(input: unknown) {
       const value = parse(teamSchema, input)
@@ -178,6 +200,42 @@ export const repository = {
       const usage = Number(one('SELECT count(*) AS count FROM matches WHERE team_a_id = ? OR team_b_id = ?', key, key)!.count)
       if (usage) throw createError({ statusCode: 409, statusMessage: `Команда используется в ${usage} матч(ах)` })
       useDatabase().prepare('DELETE FROM teams WHERE id = ?').run(key)
+    }
+  },
+
+  tournaments: {
+    list() {
+      const refs = externalRefs('tournament')
+      return all('SELECT * FROM tournaments ORDER BY start_date IS NULL, start_date DESC, name COLLATE NOCASE').map(row => toTournament(row, refs))
+    },
+    get(key: string) {
+      const row = one('SELECT * FROM tournaments WHERE id = ?', key)
+      return row ? toTournament(row, externalRefs('tournament', key)) : null
+    },
+    save(input: unknown) {
+      const value = parse(tournamentSchema, input)
+      const key = value.id || id('tournament')
+      const timestamp = now()
+      const createdAt = createdAtOf('tournaments', value.id) || timestamp
+      try {
+        useDatabase().prepare(SQL.tournament).run(key, value.name, value.league, value.tier, value.startDate, value.endDate, value.notes, value.logoAssetId, createdAt, timestamp)
+      } catch (cause) {
+        if (String(cause).includes('tournaments_name_unique') || String(cause).includes('tournaments.name')) throw createError({ statusCode: 409, statusMessage: 'Турнир с таким названием уже существует' })
+        throw cause
+      }
+      return this.get(key)
+    },
+    remove(key: string) {
+      const database = useDatabase()
+      database.exec('BEGIN IMMEDIATE')
+      try {
+        database.prepare("DELETE FROM external_entities WHERE entity_type = 'tournament' AND local_id = ?").run(key)
+        database.prepare('DELETE FROM tournaments WHERE id = ?').run(key)
+        database.exec('COMMIT')
+      } catch (cause) {
+        database.exec('ROLLBACK')
+        throw cause
+      }
     }
   },
 

@@ -154,6 +154,28 @@ function migrationV3(database: DatabaseSync) {
   `)
 }
 
+function migrationV4(database: DatabaseSync) {
+  database.exec(`
+    CREATE TABLE tournaments (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL COLLATE NOCASE,
+      league TEXT NOT NULL DEFAULT '',
+      tier TEXT NOT NULL DEFAULT '',
+      start_date TEXT,
+      end_date TEXT,
+      notes TEXT NOT NULL DEFAULT '',
+      logo_asset_id TEXT REFERENCES media(id) ON DELETE SET NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      CHECK (tier IN ('', 'S', 'A', 'B', 'C', 'D'))
+    );
+    CREATE UNIQUE INDEX tournaments_name_unique ON tournaments(lower(name));
+
+    INSERT INTO schema_migrations(version, applied_at)
+    VALUES (4, datetime('now'));
+  `)
+}
+
 function migrate(database: DatabaseSync) {
   database.exec(`
     PRAGMA journal_mode = WAL;
@@ -165,7 +187,7 @@ function migrate(database: DatabaseSync) {
     );
   `)
   const applied = new Set((database.prepare('SELECT version FROM schema_migrations').all() as Array<{ version: number }>).map(row => row.version))
-  for (const [version, migration] of [[1, migrationV1], [2, migrationV2], [3, migrationV3]] as const) {
+  for (const [version, migration] of [[1, migrationV1], [2, migrationV2], [3, migrationV3], [4, migrationV4]] as const) {
     if (applied.has(version)) continue
     database.exec('BEGIN IMMEDIATE')
     try {
