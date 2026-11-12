@@ -6,120 +6,275 @@ import { json, useDatabase } from './database'
 type Row = Record<string, unknown>
 const now = () => new Date().toISOString()
 const id = (prefix: string) => `${prefix}_${randomUUID()}`
+const REVISIONS_PER_PROJECT = 30
+
+/* ---------- Input schemas ---------- */
 
 const teamSchema = z.object({
-  id: z.string().nullable().optional(), name: z.string().trim().min(1).max(60),
-  shortName: z.string().trim().max(12).default(''), region: z.string().trim().max(40).default(''),
-  notes: z.string().trim().max(500).default(''), logoAssetId: z.string().nullable().default(null)
+  id: z.string().nullable().optional(),
+  name: z.string().trim().min(1).max(60),
+  shortName: z.string().trim().max(12).default(''),
+  region: z.string().trim().max(40).default(''),
+  notes: z.string().trim().max(500).default(''),
+  logoAssetId: z.string().nullable().default(null)
 })
 
 const matchSchema = z.object({
-  id: z.string().nullable().optional(), teamAId: z.string().min(1), teamBId: z.string().min(1),
-  tournament: z.string().trim().min(1).max(100), stage: z.string().trim().max(80).default(''),
-  startDate: z.iso.date(), startTime: z.string().regex(/^\d{2}:\d{2}$/), timezone: z.string().min(1),
-  format: z.enum(['BO1', 'BO2', 'BO3', 'BO5']), status: z.enum(['scheduled', 'live', 'completed', 'cancelled']),
-  scoreA: z.number().int().min(0).max(9).nullable().default(null), scoreB: z.number().int().min(0).max(9).nullable().default(null),
-  winnerTeamId: z.string().nullable().default(null), notes: z.string().max(1000).default('')
+  id: z.string().nullable().optional(),
+  teamAId: z.string().min(1),
+  teamBId: z.string().min(1),
+  tournament: z.string().trim().min(1).max(100),
+  stage: z.string().trim().max(80).default(''),
+  startDate: z.iso.date(),
+  startTime: z.string().regex(/^\d{2}:\d{2}$/),
+  timezone: z.string().min(1),
+  format: z.enum(['BO1', 'BO2', 'BO3', 'BO5']),
+  status: z.enum(['scheduled', 'live', 'completed', 'cancelled']),
+  scoreA: z.number().int().min(0).max(9).nullable().default(null),
+  scoreB: z.number().int().min(0).max(9).nullable().default(null),
+  winnerTeamId: z.string().nullable().default(null),
+  notes: z.string().max(1000).default('')
 }).refine(value => value.teamAId !== value.teamBId, { message: 'Выберите разные команды', path: ['teamBId'] })
 
 const projectSchema = z.object({
-  id: z.string().nullable().optional(), title: z.string().trim().min(1).max(200), templateId: z.string().min(1),
-  templateVersion: z.number().int().positive(), matchId: z.string().nullable().default(null),
-  data: z.record(z.string(), z.unknown()), style: z.record(z.string(), z.unknown()), size: z.string().min(1),
-  thumbnailAssetId: z.string().nullable().default(null), createdAt: z.string().nullable().optional(),
-  dedupeKey: z.string().max(300).nullable().default(null), source: z.record(z.string(), z.unknown()).nullable().default(null)
+  id: z.string().nullable().optional(),
+  title: z.string().trim().min(1).max(200),
+  templateId: z.string().min(1),
+  templateVersion: z.number().int().positive(),
+  matchId: z.string().nullable().default(null),
+  data: z.record(z.string(), z.unknown()),
+  style: z.record(z.string(), z.unknown()),
+  size: z.string().min(1),
+  thumbnailAssetId: z.string().nullable().default(null),
+  createdAt: z.string().nullable().optional(),
+  dedupeKey: z.string().max(300).nullable().default(null),
+  source: z.record(z.string(), z.unknown()).nullable().default(null)
 })
+
+const draftSchema = z.object({
+  id: z.string().nullable().optional(),
+  matchId: z.string().min(1),
+  mapNumber: z.number().int().min(1).max(20)
+}).passthrough()
 
 function parse<T>(schema: z.ZodType<T>, input: unknown): T {
   const result = schema.safeParse(input)
-  if (!result.success) throw createError({ statusCode: 422, statusMessage: result.error.issues[0]?.message || 'Некорректные данные', data: result.error.flatten() })
+  if (!result.success) {
+    throw createError({ statusCode: 422, statusMessage: result.error.issues[0]?.message || 'Некорректные данные', data: result.error.flatten() })
+  }
   return result.data
 }
 
-function team(row: Row) {
-  const externalRefs = (useDatabase().prepare('SELECT provider, external_id FROM external_entities WHERE entity_type = ? AND local_id = ? ORDER BY provider').all('team', String(row.id)) as Row[])
-    .map(ref => ({ provider: ref.provider, externalId: ref.external_id }))
-  return { id: row.id, name: row.name, shortName: row.short_name, region: row.region, notes: row.notes, logoAssetId: row.logo_asset_id, createdAt: row.created_at, updatedAt: row.updated_at, externalRefs }
+/* ---------- SQL helpers ---------- */
+
+const TEAM_COLUMNS = ['id', 'name', 'short_name', 'region', 'notes', 'logo_asset_id', 'created_at', 'updated_at']
+const MATCH_COLUMNS = [
+  'id', 'team_a_id', 'team_b_id', 'tournament', 'stage', 'start_date', 'start_time', 'timezone',
+  'format', 'status', 'score_a', 'score_b', 'winner_team_id', 'notes', 'created_at', 'updated_at'
+]
+const PROJECT_COLUMNS = [
+  'id', 'title', 'template_id', 'template_version', 'match_id', 'data_json', 'style_json', 'size',
+  'thumbnail_asset_id', 'dedupe_key', 'source_json', 'created_at', 'updated_at', 'saved_at'
+]
+const DRAFT_COLUMNS = ['id', 'match_id', 'map_number', 'data_json', 'updated_at']
+
+/** INSERT ... ON CONFLICT DO UPDATE; every column except the conflict target and `keep` is refreshed. */
+function upsertSql(table: string, columns: string[], conflict: string[], keep: string[] = []) {
+  const skipped = new Set([...conflict, ...keep])
+  const updates = columns.filter(column => !skipped.has(column)).map(column => `${column} = excluded.${column}`).join(', ')
+  return `INSERT INTO ${table} (${columns.join(', ')})
+VALUES (${columns.map(() => '?').join(', ')})
+ON CONFLICT (${conflict.join(', ')}) DO UPDATE SET ${updates}`
 }
 
-function match(row: Row) {
-  return { id: row.id, teamAId: row.team_a_id, teamBId: row.team_b_id, tournament: row.tournament, stage: row.stage, startDate: row.start_date, startTime: row.start_time, timezone: row.timezone, format: row.format, status: row.status, scoreA: row.score_a, scoreB: row.score_b, winnerTeamId: row.winner_team_id, notes: row.notes, createdAt: row.created_at, updatedAt: row.updated_at }
+const SQL = {
+  team: upsertSql('teams', TEAM_COLUMNS, ['id'], ['created_at']),
+  match: upsertSql('matches', MATCH_COLUMNS, ['id'], ['created_at']),
+  project: upsertSql('projects', PROJECT_COLUMNS, ['id'], ['created_at']),
+  draft: upsertSql('drafts', DRAFT_COLUMNS, ['match_id', 'map_number'], ['id']),
+  setting: 'INSERT INTO settings (key, value_json) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value_json = excluded.value_json',
+  insertRevision: 'INSERT INTO revisions (id, project_id, saved_at, note, snapshot_json) VALUES (?, ?, ?, ?, ?)',
+  trimRevisions: `DELETE FROM revisions
+WHERE project_id = ?
+  AND id NOT IN (SELECT id FROM revisions WHERE project_id = ? ORDER BY saved_at DESC LIMIT ${REVISIONS_PER_PROJECT})`
 }
 
-function project(row: Row) {
-  return { id: row.id, title: row.title, templateId: row.template_id, templateVersion: row.template_version, matchId: row.match_id, data: json(String(row.data_json)), style: json(String(row.style_json)), size: row.size, thumbnailAssetId: row.thumbnail_asset_id, createdAt: row.created_at, updatedAt: row.updated_at, savedAt: row.saved_at, dedupeKey: row.dedupe_key ?? null, source: row.source_json ? json(String(row.source_json)) : null }
+const one = (sql: string, ...params: Array<string | number>) => useDatabase().prepare(sql).get(...params) as Row | undefined
+const all = (sql: string, ...params: Array<string | number>) => useDatabase().prepare(sql).all(...params) as Row[]
+const createdAtOf = (table: string, key: string | null | undefined) => key ? one(`SELECT created_at FROM ${table} WHERE id = ?`, key)?.created_at as string | undefined : undefined
+
+/* ---------- Row mappers ---------- */
+
+type ExternalRef = { provider: unknown, externalId: unknown }
+
+/** Team external refs for all teams (no argument) or one team, grouped by local id in a single query. */
+function teamRefs(localId?: string): Map<string, ExternalRef[]> {
+  const filter = localId ? ' AND local_id = ?' : ''
+  const rows = all(`SELECT local_id, provider, external_id FROM external_entities WHERE entity_type = 'team'${filter} ORDER BY provider`, ...(localId ? [localId] : []))
+  const byTeam = new Map<string, ExternalRef[]>()
+  for (const row of rows) {
+    const key = String(row.local_id)
+    byTeam.set(key, [...(byTeam.get(key) ?? []), { provider: row.provider, externalId: row.external_id }])
+  }
+  return byTeam
 }
+
+function toTeam(row: Row, refs: Map<string, ExternalRef[]>) {
+  return {
+    id: row.id, name: row.name, shortName: row.short_name, region: row.region, notes: row.notes,
+    logoAssetId: row.logo_asset_id, createdAt: row.created_at, updatedAt: row.updated_at,
+    externalRefs: refs.get(String(row.id)) ?? []
+  }
+}
+
+function toMatch(row: Row) {
+  return {
+    id: row.id, teamAId: row.team_a_id, teamBId: row.team_b_id, tournament: row.tournament, stage: row.stage,
+    startDate: row.start_date, startTime: row.start_time, timezone: row.timezone, format: row.format, status: row.status,
+    scoreA: row.score_a, scoreB: row.score_b, winnerTeamId: row.winner_team_id, notes: row.notes,
+    createdAt: row.created_at, updatedAt: row.updated_at
+  }
+}
+
+function toProject(row: Row) {
+  return {
+    id: row.id, title: row.title, templateId: row.template_id, templateVersion: row.template_version, matchId: row.match_id,
+    data: json(String(row.data_json)), style: json(String(row.style_json)), size: row.size,
+    thumbnailAssetId: row.thumbnail_asset_id, createdAt: row.created_at, updatedAt: row.updated_at, savedAt: row.saved_at,
+    dedupeKey: row.dedupe_key ?? null, source: row.source_json ? json(String(row.source_json)) : null
+  }
+}
+
+function toDraft(row: Row) {
+  return { ...json<Record<string, unknown>>(String(row.data_json)), id: row.id, matchId: row.match_id, mapNumber: row.map_number, updatedAt: row.updated_at }
+}
+
+/* ---------- Repository ---------- */
 
 export const repository = {
   teams: {
-    list: () => (useDatabase().prepare('SELECT * FROM teams ORDER BY name COLLATE NOCASE').all() as Row[]).map(team),
-    get: (key: string) => { const row = useDatabase().prepare('SELECT * FROM teams WHERE id = ?').get(key) as Row | undefined; return row ? team(row) : null },
+    list() {
+      const refs = teamRefs()
+      return all('SELECT * FROM teams ORDER BY name COLLATE NOCASE').map(row => toTeam(row, refs))
+    },
+    get(key: string) {
+      const row = one('SELECT * FROM teams WHERE id = ?', key)
+      return row ? toTeam(row, teamRefs(key)) : null
+    },
     save(input: unknown) {
-      const value = parse(teamSchema, input); const database = useDatabase(); const existing = value.id ? database.prepare('SELECT created_at FROM teams WHERE id = ?').get(value.id) as Row | undefined : undefined
-      const key = value.id || id('team'); const timestamp = now()
-      try { database.prepare(`INSERT INTO teams(id,name,short_name,region,notes,logo_asset_id,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,short_name=excluded.short_name,region=excluded.region,notes=excluded.notes,logo_asset_id=excluded.logo_asset_id,updated_at=excluded.updated_at`).run(key, value.name, value.shortName, value.region, value.notes, value.logoAssetId, String(existing?.created_at || timestamp), timestamp) }
-      catch (cause) { if (String(cause).includes('teams_name_unique')) throw createError({ statusCode: 409, statusMessage: 'Команда с таким названием уже существует' }); throw cause }
+      const value = parse(teamSchema, input)
+      const key = value.id || id('team')
+      const timestamp = now()
+      const createdAt = createdAtOf('teams', value.id) || timestamp
+      try {
+        useDatabase().prepare(SQL.team).run(key, value.name, value.shortName, value.region, value.notes, value.logoAssetId, createdAt, timestamp)
+      } catch (cause) {
+        if (String(cause).includes('teams_name_unique')) throw createError({ statusCode: 409, statusMessage: 'Команда с таким названием уже существует' })
+        throw cause
+      }
       return this.get(key)
     },
     remove(key: string) {
-      const usage = Number((useDatabase().prepare('SELECT count(*) count FROM matches WHERE team_a_id = ? OR team_b_id = ?').get(key, key) as Row).count)
+      const usage = Number(one('SELECT count(*) AS count FROM matches WHERE team_a_id = ? OR team_b_id = ?', key, key)!.count)
       if (usage) throw createError({ statusCode: 409, statusMessage: `Команда используется в ${usage} матч(ах)` })
       useDatabase().prepare('DELETE FROM teams WHERE id = ?').run(key)
     }
   },
+
   matches: {
-    list: () => (useDatabase().prepare('SELECT * FROM matches ORDER BY start_date DESC, start_time DESC').all() as Row[]).map(match),
-    get: (key: string) => { const row = useDatabase().prepare('SELECT * FROM matches WHERE id = ?').get(key) as Row | undefined; return row ? match(row) : null },
+    list: () => all('SELECT * FROM matches ORDER BY start_date DESC, start_time DESC').map(toMatch),
+    get(key: string) {
+      const row = one('SELECT * FROM matches WHERE id = ?', key)
+      return row ? toMatch(row) : null
+    },
     save(input: unknown) {
-      const value = parse(matchSchema, input); const database = useDatabase()
-      const teamCount = Number((database.prepare('SELECT count(*) count FROM teams WHERE id IN (?, ?)').get(value.teamAId, value.teamBId) as Row).count)
+      const value = parse(matchSchema, input)
+      const teamCount = Number(one('SELECT count(*) AS count FROM teams WHERE id IN (?, ?)', value.teamAId, value.teamBId)!.count)
       if (teamCount !== 2) throw createError({ statusCode: 422, statusMessage: 'Одна из команд не найдена' })
-      const existing = value.id ? database.prepare('SELECT created_at FROM matches WHERE id = ?').get(value.id) as Row | undefined : undefined
-      const key = value.id || id('match'); const timestamp = now(); const clearScore = value.status === 'scheduled' || value.status === 'cancelled'
-      database.prepare(`INSERT INTO matches(id,team_a_id,team_b_id,tournament,stage,start_date,start_time,timezone,format,status,score_a,score_b,notes,created_at,updated_at,winner_team_id) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET team_a_id=excluded.team_a_id,team_b_id=excluded.team_b_id,tournament=excluded.tournament,stage=excluded.stage,start_date=excluded.start_date,start_time=excluded.start_time,timezone=excluded.timezone,format=excluded.format,status=excluded.status,score_a=excluded.score_a,score_b=excluded.score_b,notes=excluded.notes,updated_at=excluded.updated_at,winner_team_id=excluded.winner_team_id`).run(key, value.teamAId, value.teamBId, value.tournament, value.stage, value.startDate, value.startTime, value.timezone, value.format, value.status, clearScore ? null : value.scoreA, clearScore ? null : value.scoreB, value.notes, String(existing?.created_at || timestamp), timestamp, value.status === 'completed' ? value.winnerTeamId : null)
+      const key = value.id || id('match')
+      const timestamp = now()
+      const createdAt = createdAtOf('matches', value.id) || timestamp
+      const hasScore = value.status !== 'scheduled' && value.status !== 'cancelled'
+      const winner = value.status === 'completed' ? value.winnerTeamId : null
+      useDatabase().prepare(SQL.match).run(
+        key, value.teamAId, value.teamBId, value.tournament, value.stage, value.startDate, value.startTime, value.timezone,
+        value.format, value.status, hasScore ? value.scoreA : null, hasScore ? value.scoreB : null, winner, value.notes,
+        createdAt, timestamp
+      )
       return this.get(key)
     },
-    remove(key: string) { useDatabase().prepare('DELETE FROM matches WHERE id = ?').run(key) }
+    remove(key: string) {
+      useDatabase().prepare('DELETE FROM matches WHERE id = ?').run(key)
+    }
   },
+
   drafts: {
-    list(matchId: string) {
-      return (useDatabase().prepare('SELECT * FROM drafts WHERE match_id = ? ORDER BY map_number').all(matchId) as Row[]).map(row => ({ ...json<Record<string, unknown>>(String(row.data_json)), id: row.id, matchId: row.match_id, mapNumber: row.map_number, updatedAt: row.updated_at }))
-    },
+    list: (matchId: string) => all('SELECT * FROM drafts WHERE match_id = ? ORDER BY map_number', matchId).map(toDraft),
     find(matchId: string, mapNumber: number) {
-      const row = useDatabase().prepare('SELECT * FROM drafts WHERE match_id = ? AND map_number = ?').get(matchId, mapNumber) as Row | undefined
-      return row ? { ...json<Record<string, unknown>>(String(row.data_json)), id: row.id, matchId: row.match_id, mapNumber: row.map_number, updatedAt: row.updated_at } : null
+      const row = one('SELECT * FROM drafts WHERE match_id = ? AND map_number = ?', matchId, mapNumber)
+      return row ? toDraft(row) : null
     },
     save(input: unknown) {
-      const value = z.object({ id: z.string().nullable().optional(), matchId: z.string().min(1), mapNumber: z.number().int().min(1).max(20) }).passthrough().parse(input)
+      const value = draftSchema.parse(input)
       const existing = this.find(value.matchId, value.mapNumber) as { id?: string } | null
-      const key = existing?.id || value.id || id('draft'); const timestamp = now()
-      useDatabase().prepare(`INSERT INTO drafts(id,match_id,map_number,data_json,updated_at) VALUES(?,?,?,?,?) ON CONFLICT(match_id,map_number) DO UPDATE SET data_json=excluded.data_json,updated_at=excluded.updated_at`).run(key, value.matchId, value.mapNumber, JSON.stringify(value), timestamp)
+      const key = existing?.id || value.id || id('draft')
+      useDatabase().prepare(SQL.draft).run(key, value.matchId, value.mapNumber, JSON.stringify(value), now())
       return this.find(value.matchId, value.mapNumber)
     }
   },
+
   projects: {
-    list: () => (useDatabase().prepare('SELECT * FROM projects ORDER BY updated_at DESC').all() as Row[]).map(project),
-    get: (key: string) => { const row = useDatabase().prepare('SELECT * FROM projects WHERE id = ?').get(key) as Row | undefined; return row ? project(row) : null },
-    findByDedupe: (key: string) => { const row = useDatabase().prepare('SELECT * FROM projects WHERE dedupe_key = ? ORDER BY created_at DESC LIMIT 1').get(key) as Row | undefined; return row ? project(row) : null },
+    list: () => all('SELECT * FROM projects ORDER BY updated_at DESC').map(toProject),
+    get(key: string) {
+      const row = one('SELECT * FROM projects WHERE id = ?', key)
+      return row ? toProject(row) : null
+    },
+    findByDedupe(key: string) {
+      const row = one('SELECT * FROM projects WHERE dedupe_key = ? ORDER BY created_at DESC LIMIT 1', key)
+      return row ? toProject(row) : null
+    },
     save(input: unknown, note = '') {
-      const value = parse(projectSchema, input); const database = useDatabase(); const key = value.id || id('poster'); const timestamp = now()
-      const existing = database.prepare('SELECT created_at FROM projects WHERE id = ?').get(key) as Row | undefined
-      const createdAt = String(existing?.created_at || value.createdAt || timestamp)
+      const value = parse(projectSchema, input)
+      const database = useDatabase()
+      const key = value.id || id('poster')
+      const timestamp = now()
+      const createdAt = createdAtOf('projects', key) || value.createdAt || timestamp
       database.exec('BEGIN IMMEDIATE')
       try {
-        database.prepare(`INSERT INTO projects(id,title,template_id,template_version,match_id,data_json,style_json,size,thumbnail_asset_id,created_at,updated_at,saved_at,dedupe_key,source_json) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET title=excluded.title,template_id=excluded.template_id,template_version=excluded.template_version,match_id=excluded.match_id,data_json=excluded.data_json,style_json=excluded.style_json,size=excluded.size,thumbnail_asset_id=excluded.thumbnail_asset_id,updated_at=excluded.updated_at,saved_at=excluded.saved_at,dedupe_key=excluded.dedupe_key,source_json=excluded.source_json`).run(key, value.title, value.templateId, value.templateVersion, value.matchId, JSON.stringify(value.data), JSON.stringify(value.style), value.size, value.thumbnailAssetId, createdAt, timestamp, timestamp, value.dedupeKey, value.source ? JSON.stringify(value.source) : null)
+        database.prepare(SQL.project).run(
+          key, value.title, value.templateId, value.templateVersion, value.matchId,
+          JSON.stringify(value.data), JSON.stringify(value.style), value.size, value.thumbnailAssetId,
+          value.dedupeKey, value.source ? JSON.stringify(value.source) : null,
+          createdAt, timestamp, timestamp
+        )
         const saved = this.get(key)!
-        database.prepare('INSERT INTO revisions(id,project_id,saved_at,note,snapshot_json) VALUES(?,?,?,?,?)').run(id('rev'), key, timestamp, note, JSON.stringify(saved))
-        database.prepare('DELETE FROM revisions WHERE project_id = ? AND id NOT IN (SELECT id FROM revisions WHERE project_id = ? ORDER BY saved_at DESC LIMIT 30)').run(key, key)
+        database.prepare(SQL.insertRevision).run(id('rev'), key, timestamp, note, JSON.stringify(saved))
+        database.prepare(SQL.trimRevisions).run(key, key)
         database.exec('COMMIT')
         return saved
-      } catch (cause) { database.exec('ROLLBACK'); throw cause }
+      } catch (cause) {
+        database.exec('ROLLBACK')
+        throw cause
+      }
     },
-    remove(key: string) { useDatabase().prepare('DELETE FROM projects WHERE id = ?').run(key) },
-    duplicate(key: string) { const source = this.get(key); if (!source) throw createError({ statusCode: 404, statusMessage: 'Публикация не найдена' }); return this.save({ ...structuredClone(source), id: null, createdAt: null, title: `${source.title} (копия)` }, `Копия «${source.title}»`) }
+    remove(key: string) {
+      useDatabase().prepare('DELETE FROM projects WHERE id = ?').run(key)
+    },
+    duplicate(key: string) {
+      const source = this.get(key)
+      if (!source) throw createError({ statusCode: 404, statusMessage: 'Публикация не найдена' })
+      return this.save({ ...structuredClone(source), id: null, createdAt: null, title: `${source.title} (копия)` }, `Копия «${source.title}»`)
+    }
   },
+
   settings: {
-    get(key: string, fallback: unknown = null) { const row = useDatabase().prepare('SELECT value_json FROM settings WHERE key = ?').get(key) as Row | undefined; return row ? json(String(row.value_json)) : fallback },
-    set(key: string, value: unknown) { useDatabase().prepare('INSERT INTO settings(key,value_json) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value_json=excluded.value_json').run(key, JSON.stringify(value)); return value }
+    get(key: string, fallback: unknown = null) {
+      const row = one('SELECT value_json FROM settings WHERE key = ?', key)
+      return row ? json(String(row.value_json)) : fallback
+    },
+    set(key: string, value: unknown) {
+      useDatabase().prepare(SQL.setting).run(key, JSON.stringify(value))
+      return value
+    }
   }
 }
