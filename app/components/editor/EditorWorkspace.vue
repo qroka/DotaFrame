@@ -1,94 +1,43 @@
 <!-- @level L1-Feature -->
 <script setup lang="ts">
 import { onBeforeRouteLeave } from 'vue-router'
-import type { Match, PosterProject, PosterTemplate, Team } from '~/types/dotaframe'
-import { api } from '~/services/api'
+import type { EditorProjectOptions } from '~/composables/useEditorProject'
 
-const props = defineProps<{ projectId?: string, templateId?: string, matchId?: string, matchIds?: string[], mapNumber?: number }>()
+const props = defineProps<EditorProjectOptions>()
 const toast = useToast()
-const loading = shallowRef(true)
-const saving = shallowRef(false)
+const editor = useEditorProject(props)
+const { loading, saving, project: state, template, templates, teams, matches, selectedMatchIds, dirty, canUndo, canRedo } = editor
 const exporting = shallowRef(false)
-const state = shallowRef<PosterProject | null>(null)
-const savedSnapshot = shallowRef('')
-const templates = shallowRef<PosterTemplate[]>([])
-const template = shallowRef<PosterTemplate | null>(null)
-const teams = shallowRef<Team[]>([])
-const matches = shallowRef<Match[]>([])
 const issues = shallowRef<Array<{ level: 'error' | 'warning', message: string }>>([])
 const leftTab = shallowRef('data')
-const selectedMatchIds = shallowRef<string[]>(props.matchIds ?? [])
-const dirty = computed(() => state.value ? JSON.stringify(state.value) !== savedSnapshot.value : false)
 const hasErrors = computed(() => issues.value.some(issue => issue.level === 'error'))
 
-function replace(patch: Partial<PosterProject>) { if (state.value) state.value = { ...state.value, ...patch } }
-function cloneCurrent() { return state.value ? structuredClone(state.value) : null }
-
-onMounted(async () => {
-  try {
-    const [templateModule, factory] = await Promise.all([
-      import('~~/src/templates/index.js'), import('~/services/projectFactory')
-    ])
-    templates.value = templateModule.listTemplates()
-    const lookups = await factory.loadLookups()
-    teams.value = lookups.teams
-    matches.value = lookups.matches
-    const project = props.projectId
-      ? await api.projects.get(props.projectId)
-      : await (factory.newProjectState as any)({ templateId: props.templateId, matchId: props.matchId ?? null, matchIds: props.matchIds ?? [], mapNumber: props.mapNumber ?? 1, lookups })
-    if (!project) throw new Error('Публикация не найдена')
-    state.value = project
-    template.value = templateModule.getTemplate(project.templateId, project.templateVersion) ?? templateModule.getTemplate(project.templateId)
-    selectedMatchIds.value = project.data?.items?.map((item: any) => item.matchId).filter(Boolean) ?? props.matchIds ?? []
-    savedSnapshot.value = props.projectId ? JSON.stringify(project) : ''
-  } catch (cause) {
-    toast.add({ title: 'Не удалось открыть редактор', description: cause instanceof Error ? cause.message : String(cause), color: 'error' })
-  } finally { loading.value = false }
-})
-
-async function rebuildData(matchId?: string, matchIds = selectedMatchIds.value) {
-  if (!state.value || !template.value) return
-  const factory = await import('~/services/projectFactory')
-  const lookups = { teams: teams.value, matches: matches.value, teamsById: Object.fromEntries(teams.value.map(team => [team.id, team])) }
-  const data = await (factory.buildData as any)(template.value, { matchId: matchId ?? null, matchIds, mapNumber: state.value.data.mapNumber ?? props.mapNumber ?? 1, texts: state.value.data.texts, lookups })
-  replace({ matchId: matchId ?? null, data })
-}
-async function selectMatches(ids: string[]) { selectedMatchIds.value = ids.slice(0, 6); await rebuildData(undefined, selectedMatchIds.value) }
-function updateText(key: string, value: string) { if (state.value) replace({ data: { ...state.value.data, texts: { ...state.value.data.texts, [key]: value } } }) }
-
-async function switchTemplate(id: string) {
-  if (!state.value || id === state.value.templateId) return
-  const [{ switchTemplateState }, templateModule] = await Promise.all([import('~/services/projectFactory'), import('~~/src/templates/index.js')])
-  const lookups = { teams: teams.value, matches: matches.value, teamsById: Object.fromEntries(teams.value.map(team => [team.id, team])) }
-  state.value = await switchTemplateState(state.value, id, lookups)
-  template.value = templateModule.getTemplate(id)
-}
-async function save() {
-  if (!state.value) return
-  saving.value = true
-  try {
-    const saved = await api.projects.save(cloneCurrent()!, state.value.id ? 'Изменения в редакторе' : 'Первая версия')
-    state.value = saved
-    savedSnapshot.value = JSON.stringify(saved)
-    toast.add({ title: 'Публикация сохранена', color: 'success', icon: 'i-lucide-check' })
-    if (!props.projectId) await navigateTo(`/editor/${saved.id}`, { replace: true })
-  } catch (cause) { toast.add({ title: 'Не удалось сохранить', description: cause instanceof Error ? cause.message : String(cause), color: 'error' }) }
-  finally { saving.value = false }
-}
 async function exportPng() {
   if (!state.value || !template.value || hasErrors.value) return
-  if (dirty.value || !state.value.id) await save()
+  // Every PNG must correspond to a saved version.
+  if ((dirty.value || !state.value.id) && !await editor.save()) return
+  const current = state.value
+  const tpl = template.value
+  if (!current || !tpl) return
   exporting.value = true
   try {
     const { renderPng, downloadBlob, exportFileName } = await import('~~/src/export/exportPng.js')
-    const size = template.value.exportSizes.find(item => item.id === state.value?.size) ?? template.value.exportSizes[0]
-    const result = await renderPng({ template: template.value, data: state.value.data, style: state.value.style, size })
-    downloadBlob(result.blob, exportFileName(state.value.title, template.value.id, size))
+    const size = tpl.exportSizes.find(item => item.id === current.size) ?? tpl.exportSizes[0]!
+    const result = await renderPng({ template: tpl, data: current.data, style: current.style, size })
+    downloadBlob(result.blob, exportFileName(current.title, tpl.id, size))
     toast.add({ title: `PNG ${result.width} × ${result.height} готов`, color: 'success' })
   } catch (cause) { toast.add({ title: 'Экспорт не выполнен', description: cause instanceof Error ? cause.message : String(cause), color: 'error' }) }
   finally { exporting.value = false }
 }
-defineShortcuts({ meta_s: { handler: save }, meta_shift_e: { handler: exportPng } })
+// `meta` is Ctrl on Windows/Linux and Cmd on macOS. Save and export also work while a text field has focus;
+// undo/redo are left to the field itself there (native text undo).
+defineShortcuts({
+  meta_s: { handler: () => editor.save(), usingInput: true },
+  meta_shift_e: { handler: exportPng, usingInput: true },
+  meta_z: { handler: editor.undo },
+  meta_shift_z: { handler: editor.redo },
+  meta_y: { handler: editor.redo }
+})
 onBeforeRouteLeave(() => !dirty.value || window.confirm('Есть несохранённые изменения. Покинуть редактор?'))
 </script>
 
@@ -98,12 +47,14 @@ onBeforeRouteLeave(() => !dirty.value || window.confirm('Есть несохра
   <div v-else class="flex h-dvh min-w-0 flex-col overflow-hidden bg-default">
     <header class="flex h-14 shrink-0 items-center gap-2 border-b border-default px-2 sm:px-3">
       <UButton to="/projects" icon="i-lucide-arrow-left" color="neutral" variant="ghost" aria-label="К публикациям" />
-      <UInput :model-value="state.title" class="min-w-0 max-w-md flex-1" variant="none" aria-label="Название публикации" @update:model-value="replace({ title: String($event) })" />
+      <UInput :model-value="state.title" class="min-w-0 max-w-md flex-1" variant="none" aria-label="Название публикации" @update:model-value="editor.setTitle(String($event))" />
       <UBadge :color="dirty ? 'warning' : 'success'" variant="subtle" :label="dirty ? 'Не сохранено' : 'Сохранено'" class="hidden sm:flex" />
       <div class="ml-auto flex items-center gap-2">
-        <USelect :model-value="state.templateId" :items="templates.map(item => ({ label: item.name, value: item.id }))" value-key="value" class="hidden w-56 lg:flex" @update:model-value="switchTemplate(String($event))" />
-        <USelect :model-value="state.size" :items="template.exportSizes" label-key="label" value-key="id" class="hidden w-36 md:flex" @update:model-value="replace({ size: String($event) })" />
-        <UButton label="Сохранить" icon="i-lucide-save" color="neutral" variant="outline" :loading="saving" @click="save" />
+        <USelect :model-value="state.templateId" :items="templates.map(item => ({ label: item.name, value: item.id }))" value-key="value" class="hidden w-56 lg:flex" @update:model-value="editor.switchTemplate(String($event))" />
+        <USelect :model-value="state.size" :items="template.exportSizes" label-key="label" value-key="id" class="hidden w-36 md:flex" @update:model-value="editor.setSize(String($event))" />
+        <UButton icon="i-lucide-undo-2" color="neutral" variant="ghost" aria-label="Отменить (Ctrl+Z)" :disabled="!canUndo" @click="editor.undo()" />
+        <UButton icon="i-lucide-redo-2" color="neutral" variant="ghost" aria-label="Повторить (Ctrl+Shift+Z)" :disabled="!canRedo" @click="editor.redo()" />
+        <UButton label="Сохранить" icon="i-lucide-save" color="neutral" variant="outline" :loading="saving" @click="editor.save()" />
         <UButton label="PNG" icon="i-lucide-download" :loading="exporting" :disabled="hasErrors" @click="exportPng" />
       </div>
     </header>
@@ -111,8 +62,8 @@ onBeforeRouteLeave(() => !dirty.value || window.confirm('Есть несохра
       <aside class="hidden w-[330px] shrink-0 flex-col border-r border-default bg-default lg:flex" aria-label="Данные публикации">
         <UTabs v-model="leftTab" :items="[{ label: 'Данные', value: 'data', icon: 'i-lucide-database' }, { label: 'Шаблоны', value: 'templates', icon: 'i-lucide-layout-template' }]" class="px-3 pt-3" />
         <div class="min-h-0 flex-1 overflow-y-auto">
-          <EditorDataPanel v-if="leftTab === 'data'" :template="template" :data="state.data" :teams="teams" :matches="matches" :selected-match-id="state.matchId" :selected-match-ids="selectedMatchIds" @select-match="rebuildData($event)" @select-matches="selectMatches" @update-text="updateText" />
-          <div v-else class="space-y-2 p-3"><UButton v-for="item in templates" :key="item.id" :label="item.name" :description="item.description" :color="item.id === state.templateId ? 'primary' : 'neutral'" :variant="item.id === state.templateId ? 'soft' : 'ghost'" block class="justify-start" @click="switchTemplate(item.id)" /></div>
+          <EditorDataPanel v-if="leftTab === 'data'" :template="template" :data="state.data" :teams="teams" :matches="matches" :selected-match-id="state.matchId" :selected-match-ids="selectedMatchIds" @select-match="editor.selectMatch($event)" @select-matches="editor.selectMatches($event)" @update-text="editor.setText" />
+          <div v-else class="space-y-2 p-3"><UButton v-for="item in templates" :key="item.id" :label="item.name" :description="item.description" :color="item.id === state.templateId ? 'primary' : 'neutral'" :variant="item.id === state.templateId ? 'soft' : 'ghost'" block class="justify-start" @click="editor.switchTemplate(item.id)" /></div>
         </div>
       </aside>
       <main class="flex min-w-0 flex-1 flex-col">
@@ -124,7 +75,7 @@ onBeforeRouteLeave(() => !dirty.value || window.confirm('Есть несохра
       </main>
       <aside class="hidden w-[310px] shrink-0 flex-col border-l border-default bg-default xl:flex" aria-label="Оформление">
         <div class="border-b border-default px-4 py-3 text-sm font-semibold text-highlighted">Оформление</div>
-        <div class="min-h-0 flex-1 overflow-y-auto"><EditorStylePanel :template="template" :style="state.style" @update-style="replace({ style: $event })" /></div>
+        <div class="min-h-0 flex-1 overflow-y-auto"><EditorStylePanel :template="template" :style="state.style" @update-style="editor.setStyle($event)" /></div>
       </aside>
     </div>
   </div>
