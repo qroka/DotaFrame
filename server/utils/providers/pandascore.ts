@@ -314,6 +314,114 @@ export async function fetchPandaScoreTournamentsByIds(externalIds: string[], opt
   return normalizeSerieList(await requestPandaScoreList(`/dota2/series?${query}`, options))
 }
 
+/* ---------- Leagues (the permanent brand: "DreamLeague", "The International") ---------- */
+
+export const externalLeagueSchema = z.object({ externalId: z.string(), name: z.string(), logoUrl: z.string().nullable() })
+export type ExternalLeague = z.infer<typeof externalLeagueSchema>
+
+export const pandaScoreLeaguesQuerySchema = z.object({ search: z.string().trim().max(80).default('') })
+export const pandaScoreLeaguesImportSchema = z.object({
+  externalIds: z.array(z.string().regex(/^\d+$/, 'Некорректный идентификатор лиги PandaScore')).min(1, 'Выберите хотя бы одну лигу').max(50, 'За один раз можно импортировать не более 50 лиг')
+})
+
+const rawLeagueSchema = z.object({
+  id: z.union([z.string(), z.number()]),
+  name: z.string().trim().min(1),
+  image_url: z.string().nullable().optional()
+}).passthrough()
+
+export function normalizePandaScoreLeague(input: unknown): ExternalLeague {
+  const raw = rawLeagueSchema.parse(input)
+  return externalLeagueSchema.parse({ externalId: String(raw.id), name: raw.name.trim().slice(0, 80), logoUrl: raw.image_url?.trim() || null })
+}
+
+function normalizeLeagueList(body: unknown[]) {
+  const leagues: ExternalLeague[] = []
+  for (const item of body) {
+    try { leagues.push(normalizePandaScoreLeague(item)) } catch { /* Skip malformed leagues. */ }
+  }
+  return leagues
+}
+
+/** Recently updated leagues, or a search by name. */
+export async function fetchPandaScoreLeagues(search: string, options: FetchOptions): Promise<ExternalLeague[]> {
+  const query = new URLSearchParams({ per_page: '50' })
+  if (search.trim()) query.set('search[name]', search.trim())
+  else query.set('sort', '-modified_at')
+  return normalizeLeagueList(await requestPandaScoreList(`/dota2/leagues?${query}`, options))
+}
+
+export async function fetchPandaScoreLeaguesByIds(externalIds: string[], options: FetchOptions): Promise<ExternalLeague[]> {
+  if (!externalIds.length) return []
+  const query = new URLSearchParams({ 'filter[id]': externalIds.join(','), per_page: '100' })
+  return normalizeLeagueList(await requestPandaScoreList(`/dota2/leagues?${query}`, options))
+}
+
+/* ---------- Tournaments (PandaScore "tournament": one stage of a series, e.g. "Group Stage", "Playoffs") ---------- */
+
+export const externalStageSchema = z.object({
+  externalId: z.string(), name: z.string(), tier: z.enum(['', ...TIERS]),
+  startDate: z.string().nullable(), endDate: z.string().nullable(), prizePool: z.string(),
+  league: externalLeagueSchema.nullable(), serie: externalTournamentSchema.nullable()
+})
+export type ExternalStage = z.infer<typeof externalStageSchema>
+
+export const pandaScoreStagesQuerySchema = pandaScoreTournamentsQuerySchema
+export const pandaScoreStagesImportSchema = z.object({
+  externalIds: z.array(z.string().regex(/^\d+$/, 'Некорректный идентификатор турнира PandaScore')).min(1, 'Выберите хотя бы один турнир').max(50, 'За один раз можно импортировать не более 50 турниров')
+})
+
+const rawStageSchema = z.object({
+  id: z.union([z.string(), z.number()]),
+  name: z.string().nullable().optional(),
+  tier: z.string().nullable().optional(),
+  begin_at: nullableDate,
+  end_at: nullableDate,
+  prizepool: z.string().nullable().optional(),
+  league: z.unknown().optional(),
+  serie: z.unknown().optional()
+}).passthrough()
+
+export function normalizePandaScoreStage(input: unknown): ExternalStage {
+  const raw = rawStageSchema.parse(input)
+  const tier = raw.tier?.trim().toUpperCase() ?? ''
+  const league = (() => { try { return normalizePandaScoreLeague(raw.league) } catch { return null } })()
+  const serie = (() => {
+    try { return normalizePandaScoreSerie({ ...(raw.serie as object), league: raw.league, tournaments: [{ tier: raw.tier }] }) } catch { return null }
+  })()
+  return externalStageSchema.parse({
+    externalId: String(raw.id), name: (raw.name?.trim() || `PandaScore ${raw.id}`).slice(0, 120),
+    tier: (TIERS as readonly string[]).includes(tier) ? tier : '',
+    startDate: dateOnly(raw.begin_at), endDate: dateOnly(raw.end_at), prizePool: (raw.prizepool?.trim() ?? '').slice(0, 80), league, serie
+  })
+}
+
+function normalizeStageList(body: unknown[]) {
+  const stages: ExternalStage[] = []
+  for (const item of body) {
+    try { stages.push(normalizePandaScoreStage(item)) } catch { /* Skip malformed tournaments. */ }
+  }
+  return stages
+}
+
+/** Running, upcoming or past stages; `search` matches the stage name. */
+export async function fetchPandaScoreStages(status: PandaScoreListStatus, search: string, options: FetchOptions): Promise<ExternalStage[]> {
+  const query = new URLSearchParams({ per_page: '50' })
+  if (search.trim()) {
+    query.set('search[name]', search.trim())
+    query.set('sort', '-begin_at')
+    return normalizeStageList(await requestPandaScoreList(`/dota2/tournaments?${query}`, options))
+  }
+  query.set('sort', status === 'past' ? '-end_at' : 'begin_at')
+  return normalizeStageList(await requestPandaScoreList(`/dota2/tournaments/${status}?${query}`, options))
+}
+
+export async function fetchPandaScoreStagesByIds(externalIds: string[], options: FetchOptions): Promise<ExternalStage[]> {
+  if (!externalIds.length) return []
+  const query = new URLSearchParams({ 'filter[id]': externalIds.join(','), per_page: '100' })
+  return normalizeStageList(await requestPandaScoreList(`/dota2/tournaments?${query}`, options))
+}
+
 /* ---------- Players ---------- */
 
 export const externalPlayerSchema = z.object({

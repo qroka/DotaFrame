@@ -217,6 +217,54 @@ function migrationV5(database: DatabaseSync) {
   `)
 }
 
+function migrationV6(database: DatabaseSync) {
+  // PandaScore hierarchy: league -> series -> tournament. The local `tournaments` table already holds PandaScore
+  // series (a league season), so it gains `league_id`, and the PandaScore "tournament" (a stage of a series) is `stages`.
+  database.exec(`
+    CREATE TABLE leagues (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL COLLATE NOCASE,
+      external_id TEXT UNIQUE,
+      logo_url TEXT,
+      notes TEXT NOT NULL DEFAULT '',
+      logo_asset_id TEXT REFERENCES media(id) ON DELETE SET NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+    CREATE UNIQUE INDEX leagues_name_unique ON leagues(lower(name));
+
+    ALTER TABLE tournaments ADD COLUMN league_id TEXT REFERENCES leagues(id) ON DELETE SET NULL;
+    CREATE INDEX tournaments_league_idx ON tournaments(league_id);
+
+    CREATE TABLE stages (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL COLLATE NOCASE,
+      series_id TEXT REFERENCES tournaments(id) ON DELETE SET NULL,
+      external_id TEXT UNIQUE,
+      tier TEXT NOT NULL DEFAULT '',
+      start_date TEXT,
+      end_date TEXT,
+      prize_pool TEXT NOT NULL DEFAULT '',
+      notes TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      CHECK (tier IN ('', 'S', 'A', 'B', 'C', 'D'))
+    );
+    CREATE INDEX stages_series_idx ON stages(series_id);
+
+    -- Existing series only know their league by name: turn each distinct name into a league.
+    INSERT INTO leagues(id, name, logo_asset_id, created_at, updated_at)
+    SELECT 'league_' || lower(hex(randomblob(16))), MIN(league),
+      (SELECT t2.logo_asset_id FROM tournaments t2 WHERE lower(t2.league) = lower(t.league) AND t2.logo_asset_id IS NOT NULL LIMIT 1),
+      strftime('%Y-%m-%dT%H:%M:%fZ', 'now'), strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+    FROM tournaments t WHERE trim(league) <> '' GROUP BY lower(league);
+    UPDATE tournaments SET league_id = (SELECT l.id FROM leagues l WHERE lower(l.name) = lower(tournaments.league)) WHERE trim(league) <> '';
+
+    INSERT INTO schema_migrations(version, applied_at)
+    VALUES (6, datetime('now'));
+  `)
+}
+
 function migrate(database: DatabaseSync) {
   database.exec(`
     PRAGMA journal_mode = WAL;
@@ -228,7 +276,7 @@ function migrate(database: DatabaseSync) {
     );
   `)
   const applied = new Set((database.prepare('SELECT version FROM schema_migrations').all() as Array<{ version: number }>).map(row => row.version))
-  for (const [version, migration] of [[1, migrationV1], [2, migrationV2], [3, migrationV3], [4, migrationV4], [5, migrationV5]] as const) {
+  for (const [version, migration] of [[1, migrationV1], [2, migrationV2], [3, migrationV3], [4, migrationV4], [5, migrationV5], [6, migrationV6]] as const) {
     if (applied.has(version)) continue
     database.exec('BEGIN IMMEDIATE')
     try {

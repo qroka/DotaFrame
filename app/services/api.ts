@@ -1,6 +1,6 @@
-import type { ExternalMatch, ExternalPlayer, ExternalTeamDetails, ExternalTournament, Match, PackageItemPreview, PosterProject, PublicationPackage, Player, Team, Tournament } from '~/types/dotaframe'
+import type { ExternalLeague, ExternalMatch, ExternalPlayer, ExternalStage, ExternalTeamDetails, ExternalTournament, Match, PackageItemPreview, PosterProject, ProjectSummary, PublicationPackage, Player, Team, Tournament, League, Stage } from '~/types/dotaframe'
 
-export interface BootstrapData { teams: Team[], tournaments: Tournament[], players: Player[], matches: Match[], projects: PosterProject[] }
+export interface BootstrapData { teams: Team[], leagues: League[], tournaments: Tournament[], stages: Stage[], players: Player[], matches: Match[], projects: ProjectSummary[] }
 
 export const api = {
   bootstrap: () => $fetch<BootstrapData>('/api/bootstrap'),
@@ -13,6 +13,16 @@ export const api = {
     get: (id: string) => $fetch<Tournament>(`/api/tournaments/${id}`),
     save: (value: Partial<Tournament>) => $fetch<Tournament>('/api/tournaments', { method: 'POST', body: value }),
     remove: (id: string) => $fetch(`/api/tournaments/${id}`, { method: 'DELETE' })
+  },
+  leagues: {
+    get: (id: string) => $fetch<League>(`/api/leagues/${id}`),
+    save: (value: Partial<League>) => $fetch<League>('/api/leagues', { method: 'POST', body: value }),
+    remove: (id: string) => $fetch(`/api/leagues/${id}`, { method: 'DELETE' })
+  },
+  stages: {
+    get: (id: string) => $fetch<Stage>(`/api/stages/${id}`),
+    save: (value: Partial<Stage>) => $fetch<Stage>('/api/stages', { method: 'POST', body: value }),
+    remove: (id: string) => $fetch(`/api/stages/${id}`, { method: 'DELETE' })
   },
   players: {
     get: (id: string) => $fetch<Player>(`/api/players/${id}`),
@@ -49,6 +59,10 @@ export const api = {
       importTeams: (externalIds: string[]) => $fetch<{ created: number, updated: number, imported: Array<{ externalId: string, localId: string, created: boolean }> }>('/api/integrations/pandascore/teams/import', { method: 'POST', body: { externalIds } }),
       getTournaments: (status: 'running' | 'upcoming' | 'past', search = '') => $fetch<{ status: string, search: string, tournaments: ExternalTournament[] }>('/api/integrations/pandascore/tournaments', { query: search ? { status, search } : { status } }),
       importTournaments: (externalIds: string[]) => $fetch<{ created: number, updated: number, imported: Array<{ externalId: string, localId: string, created: boolean }> }>('/api/integrations/pandascore/tournaments/import', { method: 'POST', body: { externalIds } }),
+      getLeagues: (search = '') => $fetch<{ search: string, leagues: ExternalLeague[] }>('/api/integrations/pandascore/leagues', { query: search ? { search } : undefined }),
+      importLeagues: (externalIds: string[]) => $fetch<{ created: number, updated: number, imported: Array<{ externalId: string, localId: string, created: boolean }> }>('/api/integrations/pandascore/leagues/import', { method: 'POST', body: { externalIds } }),
+      getStages: (status: 'running' | 'upcoming' | 'past', search = '') => $fetch<{ status: string, search: string, stages: ExternalStage[] }>('/api/integrations/pandascore/stages', { query: search ? { status, search } : { status } }),
+      importStages: (externalIds: string[]) => $fetch<{ created: number, updated: number, imported: Array<{ externalId: string, localId: string, created: boolean, seriesId: string | null }> }>('/api/integrations/pandascore/stages/import', { method: 'POST', body: { externalIds } }),
       getPlayers: (search = '') => $fetch<{ source: 'rosters' | 'search', linkedTeams: number, players: ExternalPlayer[] }>('/api/integrations/pandascore/players', { query: search ? { search } : undefined }),
       importPlayers: (externalIds: string[]) => $fetch<{ created: number, updated: number, withoutTeam: number, imported: Array<{ externalId: string, localId: string, created: boolean, teamId: string | null }> }>('/api/integrations/pandascore/players/import', { method: 'POST', body: { externalIds } }),
       importMatch: (externalMatchId: string, teamMappings: Array<{ externalId: string, localId: string }> = []) => $fetch<{ matchId: string, package: PublicationPackage }>('/api/integrations/pandascore/import', { method: 'POST', body: { externalMatchId, teamMappings } })

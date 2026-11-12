@@ -18,9 +18,17 @@ export const BACKUP_TABLES = {
     primaryKey: 'id',
     columns: ['id', 'name', 'short_name', 'region', 'notes', 'logo_asset_id', 'created_at', 'updated_at']
   },
+  leagues: {
+    primaryKey: 'id',
+    columns: ['id', 'name', 'external_id', 'logo_url', 'notes', 'logo_asset_id', 'created_at', 'updated_at']
+  },
   tournaments: {
     primaryKey: 'id',
-    columns: ['id', 'name', 'league', 'tier', 'start_date', 'end_date', 'notes', 'logo_asset_id', 'created_at', 'updated_at']
+    columns: ['id', 'name', 'league', 'tier', 'start_date', 'end_date', 'notes', 'logo_asset_id', 'created_at', 'updated_at', 'league_id']
+  },
+  stages: {
+    primaryKey: 'id',
+    columns: ['id', 'name', 'series_id', 'external_id', 'tier', 'start_date', 'end_date', 'prize_pool', 'notes', 'created_at', 'updated_at']
   },
   players: {
     primaryKey: 'id',

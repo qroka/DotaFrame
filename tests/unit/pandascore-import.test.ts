@@ -35,13 +35,14 @@ describe('PandaScore SQLite import', () => {
       PRAGMA foreign_keys = ON;
       CREATE TABLE schema_migrations(version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL);
       INSERT INTO schema_migrations VALUES(1, datetime('now'));
+      CREATE TABLE media(id TEXT PRIMARY KEY);
       CREATE TABLE teams(id TEXT PRIMARY KEY);
       CREATE TABLE matches(id TEXT PRIMARY KEY);
       CREATE TABLE projects(id TEXT PRIMARY KEY);
     `)
     legacy.close()
     const database = useDatabase()
-    expect((database.prepare('SELECT max(version) version FROM schema_migrations').get() as any).version).toBe(5)
+    expect((database.prepare('SELECT max(version) version FROM schema_migrations').get() as any).version).toBe(6)
     expect((database.prepare("SELECT count(*) count FROM pragma_table_info('projects') WHERE name = 'dedupe_key'").get() as any).count).toBe(1)
     expect((database.prepare("SELECT count(*) count FROM sqlite_master WHERE type = 'table' AND name = 'match_games'").get() as any).count).toBe(1)
     expect((database.prepare("SELECT count(*) count FROM pragma_table_info('match_games') WHERE name = 'stats_json'").get() as any).count).toBe(1)
@@ -57,7 +58,7 @@ describe('PandaScore SQLite import', () => {
     expect((database.prepare('SELECT count(*) count FROM matches').get() as any).count).toBe(1)
     expect((database.prepare('SELECT count(*) count FROM match_games').get() as any).count).toBe(1)
     expect((database.prepare('SELECT count(*) count FROM media').get() as any).count).toBe(2)
-    expect((database.prepare('SELECT max(version) version FROM schema_migrations').get() as any).version).toBe(5)
+    expect((database.prepare('SELECT max(version) version FROM schema_migrations').get() as any).version).toBe(6)
     expect((database.prepare('SELECT length(bytes) bytes FROM media LIMIT 1').get() as any).bytes).toBe(logo.length)
   })
 

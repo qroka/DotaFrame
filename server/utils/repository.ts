@@ -24,11 +24,31 @@ const tournamentSchema = z.object({
   id: z.string().nullable().optional(),
   name: z.string().trim().min(1, 'Введите название турнира').max(120),
   league: z.string().trim().max(80).default(''),
+  leagueId: z.string().nullable().optional(),
   tier: z.enum(['', 'S', 'A', 'B', 'C', 'D']).default(''),
   startDate: optionalDate,
   endDate: optionalDate,
   notes: z.string().trim().max(500).default(''),
   logoAssetId: z.string().nullable().default(null)
+}).refine(value => !value.startDate || !value.endDate || value.startDate <= value.endDate, { message: 'Дата окончания раньше даты начала', path: ['endDate'] })
+
+const leagueSchema = z.object({
+  id: z.string().nullable().optional(),
+  name: z.string().trim().min(1, 'Введите название лиги').max(80),
+  notes: z.string().trim().max(500).default(''),
+  logoAssetId: z.string().nullable().default(null)
+})
+
+/** A PandaScore "tournament": one stage (group stage, playoffs…) of a series. */
+const stageSchema = z.object({
+  id: z.string().nullable().optional(),
+  name: z.string().trim().min(1, 'Введите название турнира').max(120),
+  seriesId: z.preprocess(value => value === '' ? null : value, z.string().nullable().default(null)),
+  tier: z.enum(['', 'S', 'A', 'B', 'C', 'D']).default(''),
+  startDate: optionalDate,
+  endDate: optionalDate,
+  prizePool: z.string().trim().max(80).default(''),
+  notes: z.string().trim().max(500).default('')
 }).refine(value => !value.startDate || !value.endDate || value.startDate <= value.endDate, { message: 'Дата окончания раньше даты начала', path: ['endDate'] })
 
 const playerSchema = z.object({
@@ -91,7 +111,9 @@ function parse<T>(schema: z.ZodType<T>, input: unknown): T {
 /* ---------- SQL helpers ---------- */
 
 const TEAM_COLUMNS = ['id', 'name', 'short_name', 'region', 'notes', 'logo_asset_id', 'created_at', 'updated_at']
-const TOURNAMENT_COLUMNS = ['id', 'name', 'league', 'tier', 'start_date', 'end_date', 'notes', 'logo_asset_id', 'created_at', 'updated_at']
+const TOURNAMENT_COLUMNS = ['id', 'name', 'league', 'tier', 'start_date', 'end_date', 'notes', 'logo_asset_id', 'created_at', 'updated_at', 'league_id']
+const LEAGUE_COLUMNS = ['id', 'name', 'notes', 'logo_asset_id', 'created_at', 'updated_at']
+const STAGE_COLUMNS = ['id', 'name', 'series_id', 'tier', 'start_date', 'end_date', 'prize_pool', 'notes', 'created_at', 'updated_at']
 const PLAYER_COLUMNS = ['id', 'nickname', 'real_name', 'team_id', 'role', 'country', 'notes', 'photo_asset_id', 'created_at', 'updated_at']
 const MATCH_COLUMNS = [
   'id', 'team_a_id', 'team_b_id', 'tournament', 'stage', 'start_date', 'start_time', 'timezone',
@@ -115,6 +137,8 @@ ON CONFLICT (${conflict.join(', ')}) DO UPDATE SET ${updates}`
 const SQL = {
   team: upsertSql('teams', TEAM_COLUMNS, ['id'], ['created_at']),
   tournament: upsertSql('tournaments', TOURNAMENT_COLUMNS, ['id'], ['created_at']),
+  league: upsertSql('leagues', LEAGUE_COLUMNS, ['id'], ['created_at']),
+  stage: upsertSql('stages', STAGE_COLUMNS, ['id'], ['created_at']),
   player: upsertSql('players', PLAYER_COLUMNS, ['id'], ['created_at']),
   match: upsertSql('matches', MATCH_COLUMNS, ['id'], ['created_at']),
   project: upsertSql('projects', PROJECT_COLUMNS, ['id'], ['created_at']),
@@ -129,6 +153,18 @@ WHERE project_id = ?
 const one = (sql: string, ...params: Array<string | number>) => useDatabase().prepare(sql).get(...params) as Row | undefined
 const all = (sql: string, ...params: Array<string | number>) => useDatabase().prepare(sql).all(...params) as Row[]
 const createdAtOf = (table: string, key: string | null | undefined) => key ? one(`SELECT created_at FROM ${table} WHERE id = ?`, key)?.created_at as string | undefined : undefined
+
+/** League with this name (case-insensitive), created when missing. A logo is only adopted when the league has none. */
+function ensureLeagueByName(name: string, logoAssetId: string | null, timestamp: string): string {
+  const existing = one('SELECT id, logo_asset_id FROM leagues WHERE lower(name) = lower(?)', name)
+  if (existing) {
+    if (!existing.logo_asset_id && logoAssetId) useDatabase().prepare('UPDATE leagues SET logo_asset_id = ?, updated_at = ? WHERE id = ?').run(logoAssetId, timestamp, String(existing.id))
+    return String(existing.id)
+  }
+  const key = id('league')
+  useDatabase().prepare(SQL.league).run(key, name, '', logoAssetId, timestamp, timestamp)
+  return key
+}
 
 /* ---------- Row mappers ---------- */
 
@@ -154,9 +190,25 @@ function toTeam(row: Row, refs: Map<string, ExternalRef[]>) {
   }
 }
 
+const ownExternalRef = (row: Row): ExternalRef[] => row.external_id ? [{ provider: 'pandascore', externalId: row.external_id }] : []
+
+function toLeague(row: Row) {
+  return {
+    id: row.id, name: row.name, notes: row.notes, logoAssetId: row.logo_asset_id ?? null,
+    createdAt: row.created_at, updatedAt: row.updated_at, externalRefs: ownExternalRef(row)
+  }
+}
+
+function toStage(row: Row) {
+  return {
+    id: row.id, name: row.name, seriesId: row.series_id ?? null, tier: row.tier, startDate: row.start_date ?? null, endDate: row.end_date ?? null,
+    prizePool: row.prize_pool, notes: row.notes, createdAt: row.created_at, updatedAt: row.updated_at, externalRefs: ownExternalRef(row)
+  }
+}
+
 function toTournament(row: Row, refs: Map<string, ExternalRef[]>) {
   return {
-    id: row.id, name: row.name, league: row.league, tier: row.tier, startDate: row.start_date ?? null, endDate: row.end_date ?? null,
+    id: row.id, name: row.name, league: row.league, leagueId: row.league_id ?? null, tier: row.tier, startDate: row.start_date ?? null, endDate: row.end_date ?? null,
     notes: row.notes, logoAssetId: row.logo_asset_id, createdAt: row.created_at, updatedAt: row.updated_at,
     externalRefs: refs.get(String(row.id)) ?? []
   }
@@ -243,8 +295,13 @@ export const repository = {
       const key = value.id || id('tournament')
       const timestamp = now()
       const createdAt = createdAtOf('tournaments', value.id) || timestamp
+      // A series belongs to a league: an explicit leagueId wins, otherwise the league name is matched (or created).
+      const explicit = value.leagueId ? one('SELECT id, name FROM leagues WHERE id = ?', value.leagueId) : undefined
+      if (value.leagueId && !explicit) throw createError({ statusCode: 422, statusMessage: 'Лига не найдена' })
+      const leagueName = explicit ? String(explicit.name) : value.league
+      const leagueId = explicit ? String(explicit.id) : leagueName ? ensureLeagueByName(leagueName, value.logoAssetId, timestamp) : null
       try {
-        useDatabase().prepare(SQL.tournament).run(key, value.name, value.league, value.tier, value.startDate, value.endDate, value.notes, value.logoAssetId, createdAt, timestamp)
+        useDatabase().prepare(SQL.tournament).run(key, value.name, leagueName, value.tier, value.startDate, value.endDate, value.notes, value.logoAssetId, createdAt, timestamp, leagueId)
       } catch (cause) {
         if (String(cause).includes('tournaments_name_unique') || String(cause).includes('tournaments.name')) throw createError({ statusCode: 409, statusMessage: 'Турнир с таким названием уже существует' })
         throw cause
@@ -262,6 +319,62 @@ export const repository = {
         database.exec('ROLLBACK')
         throw cause
       }
+    }
+  },
+
+  leagues: {
+    list() {
+      return all('SELECT * FROM leagues ORDER BY name COLLATE NOCASE').map(toLeague)
+    },
+    get(key: string) {
+      const row = one('SELECT * FROM leagues WHERE id = ?', key)
+      return row ? toLeague(row) : null
+    },
+    save(input: unknown) {
+      const value = parse(leagueSchema, input)
+      const key = value.id || id('league')
+      const timestamp = now()
+      const createdAt = createdAtOf('leagues', value.id) || timestamp
+      const database = useDatabase()
+      database.exec('BEGIN IMMEDIATE')
+      try {
+        database.prepare(SQL.league).run(key, value.name, value.notes, value.logoAssetId, createdAt, timestamp)
+        // Series keep the league name as text too: keep it in step when the league is renamed.
+        database.prepare('UPDATE tournaments SET league = ? WHERE league_id = ?').run(value.name, key)
+        database.exec('COMMIT')
+      } catch (cause) {
+        database.exec('ROLLBACK')
+        if (String(cause).includes('leagues_name_unique') || String(cause).includes('leagues.name')) throw createError({ statusCode: 409, statusMessage: 'Лига с таким названием уже существует' })
+        throw cause
+      }
+      return this.get(key)
+    },
+    remove(key: string) {
+      const usage = Number(one('SELECT count(*) AS count FROM tournaments WHERE league_id = ?', key)!.count)
+      if (usage) throw createError({ statusCode: 409, statusMessage: `Лига используется в ${usage} сериях` })
+      useDatabase().prepare('DELETE FROM leagues WHERE id = ?').run(key)
+    }
+  },
+
+  stages: {
+    list() {
+      return all('SELECT * FROM stages ORDER BY start_date IS NULL, start_date DESC, name COLLATE NOCASE').map(toStage)
+    },
+    get(key: string) {
+      const row = one('SELECT * FROM stages WHERE id = ?', key)
+      return row ? toStage(row) : null
+    },
+    save(input: unknown) {
+      const value = parse(stageSchema, input)
+      if (value.seriesId && !one('SELECT id FROM tournaments WHERE id = ?', value.seriesId)) throw createError({ statusCode: 422, statusMessage: 'Серия не найдена' })
+      const key = value.id || id('stage')
+      const timestamp = now()
+      const createdAt = createdAtOf('stages', value.id) || timestamp
+      useDatabase().prepare(SQL.stage).run(key, value.name, value.seriesId, value.tier, value.startDate, value.endDate, value.prizePool, value.notes, createdAt, timestamp)
+      return this.get(key)
+    },
+    remove(key: string) {
+      useDatabase().prepare('DELETE FROM stages WHERE id = ?').run(key)
     }
   },
 

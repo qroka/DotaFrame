@@ -33,6 +33,7 @@ describe('players migration', () => {
       CREATE TABLE schema_migrations(version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL);
       INSERT INTO schema_migrations VALUES(1, 'x'), (2, 'x'), (3, 'x'), (4, 'x');
       CREATE TABLE media(id TEXT PRIMARY KEY); CREATE TABLE teams(id TEXT PRIMARY KEY); CREATE TABLE match_games(id TEXT PRIMARY KEY);
+      CREATE TABLE tournaments(id TEXT PRIMARY KEY, league TEXT NOT NULL DEFAULT '', logo_asset_id TEXT);
       CREATE TABLE external_entities (id TEXT PRIMARY KEY, provider TEXT NOT NULL, entity_type TEXT NOT NULL, external_id TEXT NOT NULL,
         local_id TEXT NOT NULL, synced_at TEXT NOT NULL, metadata_json TEXT, UNIQUE(provider, entity_type, external_id),
         CHECK (provider IN ('pandascore')), CHECK (entity_type IN ('team', 'match', 'game', 'tournament')));
@@ -41,7 +42,7 @@ describe('players migration', () => {
     `)
     legacy.close()
     const database = useDatabase()
-    expect(count('SELECT max(version) count FROM schema_migrations')).toBe(5)
+    expect(count('SELECT max(version) count FROM schema_migrations')).toBe(6)
     expect(database.prepare('SELECT local_id, metadata_json FROM external_entities WHERE id = ?').get('e1')).toEqual({ local_id: 'team_1', metadata_json: '{"logoUrl":null}' })
     database.prepare("INSERT INTO external_entities VALUES('e2', 'pandascore', 'player', '30258', 'player_1', 'now', NULL)").run()
     expect(count("SELECT count(*) count FROM sqlite_master WHERE type = 'index' AND name = 'external_entities_local_idx'")).toBe(1)

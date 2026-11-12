@@ -4,8 +4,26 @@ export interface Team {
   externalRefs?: ReadonlyArray<{ provider: 'pandascore', externalId: string }>
 }
 export type TournamentTier = '' | 'S' | 'A' | 'B' | 'C' | 'D'
+type PandaScoreRefs = ReadonlyArray<{ provider: 'pandascore', externalId: string }>
+/** PandaScore hierarchy: League (brand) -> Series (a season, stored as `Tournament`) -> Tournament (a stage, stored as `Stage`). */
+export interface League {
+  id: string; name: string; notes: string; logoAssetId: string | null
+  createdAt?: string; updatedAt?: string; externalRefs?: PandaScoreRefs
+}
+export interface ExternalLeague { externalId: string; name: string; logoUrl: string | null; localLeagueId: string | null }
+export interface Stage {
+  id: string; name: string; seriesId: string | null; tier: TournamentTier
+  startDate: string | null; endDate: string | null; prizePool: string; notes: string
+  createdAt?: string; updatedAt?: string; externalRefs?: PandaScoreRefs
+}
+export interface ExternalStage {
+  externalId: string; name: string; tier: TournamentTier; startDate: string | null; endDate: string | null; prizePool: string
+  league: { externalId: string; name: string; logoUrl: string | null } | null
+  serie: { externalId: string; name: string; league: string } | null
+  localStageId: string | null
+}
 export interface Tournament {
-  id: string; name: string; league: string; tier: TournamentTier
+  id: string; name: string; league: string; leagueId?: string | null; tier: TournamentTier
   startDate: string | null; endDate: string | null; notes: string
   logoAssetId: string | null; createdAt?: string; updatedAt?: string
   externalRefs?: ReadonlyArray<{ provider: 'pandascore', externalId: string }>

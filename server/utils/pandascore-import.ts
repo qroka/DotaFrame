@@ -3,16 +3,16 @@ import { createError } from 'h3'
 import { z } from 'zod'
 import { useDatabase, json } from './database'
 import { repository } from './repository'
-import type { ExternalMatch, ExternalPlayer, ExternalTeamDetails, ExternalTournament } from './providers/pandascore'
+import type { ExternalLeague, ExternalMatch, ExternalPlayer, ExternalStage, ExternalTeamDetails, ExternalTournament } from './providers/pandascore'
 import { findOpenDotaGame, type OpenDotaEnrichment } from './providers/opendota'
 import { buildDraftData, buildMatchData } from '../../src/domain/snapshot'
 import { HEROES_BY_ID } from '../../src/data/heroes'
-import { defaultStyle, defaultTexts } from '../../src/templates/registry.js'
-import announcementTemplate from '../../src/templates/announcement.js'
-import draftTemplate from '../../src/templates/tpl-draft.js'
-import seriesTemplate from '../../src/templates/tpl-series-result.js'
-import winTemplate from '../../src/templates/tpl-win.js'
-import loseTemplate from '../../src/templates/tpl-lose.js'
+import { defaultStyle, defaultTexts } from '../../src/templates/registry'
+import announcementTemplate from '../../src/templates/announcement'
+import draftTemplate from '../../src/templates/tpl-draft'
+import seriesTemplate from '../../src/templates/tpl-series-result'
+import winTemplate from '../../src/templates/tpl-win'
+import loseTemplate from '../../src/templates/tpl-lose'
 
 type Row = Record<string, unknown>
 type FetchLike = typeof fetch
@@ -154,6 +154,69 @@ export async function importPandaScoreTeams(teams: ExternalTeamDetails[], option
   return { imported: result, created: result.filter(item => item.created).length, updated: result.filter(item => !item.created).length }
 }
 
+/* ---------- Leagues ---------- */
+
+/** Create or update the local league for a PandaScore league. A league keeps its local name and notes on re-import. */
+function upsertLeague(league: { externalId: string | null, name: string, logoUrl: string | null }, logo: DownloadedLogo | null, reuseLogoAssetId: string | null) {
+  const database = useDatabase()
+  const byExternal = league.externalId ? database.prepare('SELECT * FROM leagues WHERE external_id = ?').get(league.externalId) as Row | undefined : undefined
+  let byName = byExternal ? undefined : database.prepare('SELECT * FROM leagues WHERE lower(name) = lower(?)').get(league.name) as Row | undefined
+  // Same name but already linked to a different PandaScore league: keep both, with a distinguishable name.
+  const clash = !!byName?.external_id && !!league.externalId && byName.external_id !== league.externalId
+  if (clash) byName = undefined
+  const existing = byExternal ?? byName
+  const key = String(existing?.id || makeId('league'))
+  const timestamp = now()
+  let logoAssetId = existing?.logo_asset_id ? String(existing.logo_asset_id) : null
+  let logoUrl = existing?.logo_url ? String(existing.logo_url) : null
+  if (logo) {
+    logoAssetId = makeId('asset')
+    logoUrl = league.logoUrl
+    database.prepare('INSERT INTO media(id,kind,mime_type,bytes,name,created_at) VALUES(?,?,?,?,?,?)').run(logoAssetId, 'league-logo', logo.mimeType, logo.bytes, logo.name, timestamp)
+  } else if (!logoAssetId && reuseLogoAssetId) logoAssetId = reuseLogoAssetId
+  const name = existing ? String(existing.name) : clash ? `${league.name} · PS ${league.externalId!.slice(-5)}` : league.name
+  database.prepare(`INSERT INTO leagues(id,name,external_id,logo_url,notes,logo_asset_id,created_at,updated_at)
+    VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET external_id=excluded.external_id,logo_url=excluded.logo_url,logo_asset_id=excluded.logo_asset_id,updated_at=excluded.updated_at`)
+    .run(key, name, league.externalId ?? (existing?.external_id ? String(existing.external_id) : null), logoUrl, String(existing?.notes || ''), logoAssetId, String(existing?.created_at || timestamp), timestamp)
+  return { key, created: !existing }
+}
+
+/** Local league linked to a PandaScore league, or an unlinked local league with the same name. */
+export function findLocalLeagueForPandaScore(externalId: string, name: string): string | null {
+  const linked = useDatabase().prepare('SELECT id FROM leagues WHERE external_id = ?').get(externalId) as Row | undefined
+  if (linked) return String(linked.id)
+  const sameName = useDatabase().prepare('SELECT id FROM leagues WHERE lower(name) = lower(?) AND external_id IS NULL').get(name) as Row | undefined
+  return sameName ? String(sameName.id) : null
+}
+
+async function logoForLeague(league: ExternalLeague, fetchImpl?: FetchLike) {
+  if (!league.logoUrl) return null
+  const linked = useDatabase().prepare('SELECT logo_url FROM leagues WHERE external_id = ?').get(league.externalId) as Row | undefined
+  if (linked?.logo_url === league.logoUrl) return null
+  try { return await downloadPandaScoreLogo(league.logoUrl, fetchImpl) } catch { return null }
+}
+
+/** Create or update local leagues from PandaScore leagues, including logos. */
+export async function importPandaScoreLeagues(leagues: ExternalLeague[], options: { fetchImpl?: FetchLike } = {}) {
+  const logos = await Promise.all(leagues.map(league => logoForLeague(league, options.fetchImpl)))
+  const database = useDatabase()
+  const result: Array<{ externalId: string, localId: string, created: boolean }> = []
+  database.exec('BEGIN IMMEDIATE')
+  try {
+    leagues.forEach((league, index) => {
+      const { key, created } = upsertLeague(league, logos[index] ?? null, null)
+      result.push({ externalId: league.externalId, localId: key, created })
+    })
+    database.exec('COMMIT')
+  } catch (cause) {
+    database.exec('ROLLBACK')
+    throw cause
+  }
+  return { imported: result, created: result.filter(item => item.created).length, updated: result.filter(item => !item.created).length }
+}
+
+/* ---------- Series (stored in the local `tournaments` table) ---------- */
+
 /** Local tournament linked to a PandaScore series, or an unlinked local tournament with the same name. */
 export function findLocalTournamentForPandaScore(externalId: string, name: string): string | null {
   const linked = externalRow('tournament', externalId)
@@ -168,7 +231,7 @@ function uniqueTournamentName(name: string, externalId: string) {
   return row ? `${name} · PS ${externalId.slice(-5)}` : name
 }
 
-function upsertTournament(tournament: ExternalTournament, logo: DownloadedLogo | null, syncedAt: string, existingId: string | null) {
+function upsertTournament(tournament: ExternalTournament, logo: DownloadedLogo | null, syncedAt: string, existingId: string | null, leagueExternalId: string | null = null) {
   const previousMetadata = externalMetadata(externalRow('tournament', tournament.externalId))
   const existing = existingId ? useDatabase().prepare('SELECT * FROM tournaments WHERE id = ?').get(existingId) as Row | undefined : undefined
   const key = String(existing?.id || makeId('tournament'))
@@ -180,9 +243,10 @@ function upsertTournament(tournament: ExternalTournament, logo: DownloadedLogo |
       .run(logoAssetId, 'tournament-logo', logo.mimeType, logo.bytes, logo.name, timestamp)
   }
   const name = existing ? tournament.name : uniqueTournamentName(tournament.name, tournament.externalId)
-  useDatabase().prepare(`INSERT INTO tournaments(id,name,league,tier,start_date,end_date,notes,logo_asset_id,created_at,updated_at)
-    VALUES(?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,league=excluded.league,tier=excluded.tier,start_date=excluded.start_date,end_date=excluded.end_date,logo_asset_id=excluded.logo_asset_id,updated_at=excluded.updated_at`)
-    .run(key, name, tournament.league, tournament.tier, tournament.startDate, tournament.endDate, String(existing?.notes || ''), logoAssetId, String(existing?.created_at || timestamp), timestamp)
+  const leagueId = tournament.league ? upsertLeague({ externalId: leagueExternalId, name: tournament.league, logoUrl: tournament.logoUrl }, null, logoAssetId).key : null
+  useDatabase().prepare(`INSERT INTO tournaments(id,name,league,tier,start_date,end_date,notes,logo_asset_id,created_at,updated_at,league_id)
+    VALUES(?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,league=excluded.league,tier=excluded.tier,start_date=excluded.start_date,end_date=excluded.end_date,logo_asset_id=excluded.logo_asset_id,updated_at=excluded.updated_at,league_id=excluded.league_id`)
+    .run(key, name, tournament.league, tournament.tier, tournament.startDate, tournament.endDate, String(existing?.notes || ''), logoAssetId, String(existing?.created_at || timestamp), timestamp, leagueId)
   upsertExternal('tournament', tournament.externalId, key, syncedAt, { kind: 'serie', logoUrl: logo ? tournament.logoUrl : previousMetadata.logoUrl ?? null, logoAssetId })
   return key
 }
@@ -206,6 +270,51 @@ export async function importPandaScoreTournaments(tournaments: ExternalTournamen
       const localId = upsertTournament(tournament, logos[index] ?? null, syncedAt, existingId)
       result.push({ externalId: tournament.externalId, localId, created: !existingId })
     })
+    database.exec('COMMIT')
+  } catch (cause) {
+    database.exec('ROLLBACK')
+    throw cause
+  }
+  return { imported: result, created: result.filter(item => item.created).length, updated: result.filter(item => !item.created).length }
+}
+
+/* ---------- Tournaments (PandaScore stages of a series, stored in the local `stages` table) ---------- */
+
+/** Local stage linked to a PandaScore tournament id. */
+export function findLocalStageForPandaScore(externalId: string): string | null {
+  const row = useDatabase().prepare('SELECT id FROM stages WHERE external_id = ?').get(externalId) as Row | undefined
+  return row ? String(row.id) : null
+}
+
+/** Create or update local stages from PandaScore tournaments, together with their series and league. */
+export async function importPandaScoreStages(stages: ExternalStage[], options: { fetchImpl?: FetchLike } = {}) {
+  const seriesByExternalId = new Map<string, ExternalTournament>()
+  for (const stage of stages) if (stage.serie && !seriesByExternalId.has(stage.serie.externalId)) seriesByExternalId.set(stage.serie.externalId, stage.serie)
+  const logos = new Map(await Promise.all([...seriesByExternalId.values()].map(async serie => [serie.externalId, await logoForTournament(serie, options.fetchImpl)] as const)))
+  const database = useDatabase()
+  const syncedAt = now()
+  const savedSeries = new Map<string, string>()
+  const result: Array<{ externalId: string, localId: string, created: boolean, seriesId: string | null }> = []
+  database.exec('BEGIN IMMEDIATE')
+  try {
+    for (const stage of stages) {
+      let seriesId: string | null = null
+      if (stage.serie) {
+        seriesId = savedSeries.get(stage.serie.externalId) ?? null
+        if (!seriesId) {
+          seriesId = upsertTournament(stage.serie, logos.get(stage.serie.externalId) ?? null, syncedAt, findLocalTournamentForPandaScore(stage.serie.externalId, stage.serie.name), stage.league?.externalId ?? null)
+          savedSeries.set(stage.serie.externalId, seriesId)
+        }
+      }
+      const existingId = findLocalStageForPandaScore(stage.externalId)
+      const existing = existingId ? database.prepare('SELECT * FROM stages WHERE id = ?').get(existingId) as Row : undefined
+      const key = existingId ?? makeId('stage')
+      const timestamp = now()
+      database.prepare(`INSERT INTO stages(id,name,series_id,external_id,tier,start_date,end_date,prize_pool,notes,created_at,updated_at)
+        VALUES(?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,series_id=excluded.series_id,tier=excluded.tier,start_date=excluded.start_date,end_date=excluded.end_date,prize_pool=excluded.prize_pool,updated_at=excluded.updated_at`)
+        .run(key, stage.name, seriesId, stage.externalId, stage.tier, stage.startDate, stage.endDate, stage.prizePool, String(existing?.notes || ''), String(existing?.created_at || timestamp), timestamp)
+      result.push({ externalId: stage.externalId, localId: key, created: !existingId, seriesId })
+    }
     database.exec('COMMIT')
   } catch (cause) {
     database.exec('ROLLBACK')

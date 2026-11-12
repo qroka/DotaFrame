@@ -60,22 +60,22 @@ async function save(event: FormSubmitEvent<Schema>) {
       ...props.tournament, ...rest, tier: tier === 'none' ? '' : tier,
       startDate: startDate || null, endDate: endDate || null, logoAssetId: logoAssetId.value
     })
-    toast.add({ title: props.tournament ? 'Турнир обновлён' : 'Турнир добавлен', color: 'success', icon: 'i-lucide-check' })
+    toast.add({ title: props.tournament ? 'Серия обновлена' : 'Серия добавлена', color: 'success', icon: 'i-lucide-check' })
     open.value = false
     emit('saved')
   } catch (cause) {
-    toast.add({ title: 'Не удалось сохранить турнир', description: apiError(cause), color: 'error' })
+    toast.add({ title: 'Не удалось сохранить серию', description: apiError(cause), color: 'error' })
   } finally { saving.value = false }
 }
 </script>
 
 <template>
-  <UModal v-model:open="open" :title="tournament ? 'Изменить турнир' : 'Новый турнир'" description="Название, сроки и логотип турнира для матчей и публикаций.">
+  <UModal v-model:open="open" :title="tournament ? 'Изменить серию' : 'Новая серия'" description="Сезон лиги: название, сроки и логотип для матчей и публикаций.">
     <template #body>
       <UForm id="tournament-form" :schema="schema" :state="state" class="space-y-4" @submit="save">
         <UFormField name="name" label="Название" required><UInput v-model="state.name" class="w-full" autofocus /></UFormField>
         <div class="grid gap-4 sm:grid-cols-2">
-          <UFormField name="league" label="Лига / организатор"><UInput v-model="state.league" class="w-full" /></UFormField>
+          <UFormField name="league" label="Лига"><UInput v-model="state.league" class="w-full" /></UFormField>
           <UFormField name="tier" label="Уровень"><USelect v-model="state.tier" :items="tierItems" class="w-full" /></UFormField>
         </div>
         <div class="grid gap-4 sm:grid-cols-2">
@@ -100,7 +100,7 @@ async function save(event: FormSubmitEvent<Schema>) {
     <template #footer="{ close }">
       <div class="flex w-full justify-end gap-2">
         <UButton label="Отмена" color="neutral" variant="outline" @click="close" />
-        <UButton type="submit" form="tournament-form" :loading="saving" :label="tournament ? 'Сохранить' : 'Добавить турнир'" />
+        <UButton type="submit" form="tournament-form" :loading="saving" :label="tournament ? 'Сохранить' : 'Добавить серию'" />
       </div>
     </template>
   </UModal>

@@ -30,3 +30,10 @@ export function formatTournamentDates(startDate: string | null, endDate: string 
   if (endDate) return `до ${format(endDate)}`
   return 'Даты не указаны'
 }
+
+/** Subsections of the tournaments page, following PandaScore's League -> Series -> Tournament hierarchy. */
+export type HierarchyTab = 'league' | 'series' | 'tournament'
+export function parseHierarchyTab(value: unknown): HierarchyTab {
+  const raw = Array.isArray(value) ? value[0] : value
+  return raw === 'league' || raw === 'tournament' ? raw : 'series'
+}
