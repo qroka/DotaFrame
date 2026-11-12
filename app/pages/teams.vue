@@ -54,7 +54,7 @@ async function removeTeam() {
     </template>
     <template #body>
       <USkeleton v-if="loading" class="h-72 w-full" />
-      <UCard v-else-if="filtered.length" :ui="{ body: 'p-0 sm:p-0' }">
+      <UCard v-else-if="filtered.length" class="shrink-0" :ui="{ body: 'p-0 sm:p-0' }">
         <UTable :data="filtered" :columns="columns">
           <template #name-cell="{ row }">
             <div class="flex items-center gap-3">

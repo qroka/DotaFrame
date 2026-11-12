@@ -51,7 +51,7 @@ async function removeMatch() {
     </template>
     <template #body>
       <USkeleton v-if="loading" class="h-80 w-full" />
-      <UCard v-else-if="filtered.length" :ui="{ body: 'p-0 sm:p-0' }">
+      <UCard v-else-if="filtered.length" class="shrink-0" :ui="{ body: 'p-0 sm:p-0' }">
         <UTable :data="filtered" :columns="columns">
           <template #teams-cell="{ row }"><div class="font-medium text-highlighted">{{ teamNames[row.original.teamAId] || 'Команда A' }} — {{ teamNames[row.original.teamBId] || 'Команда B' }}</div><div class="mt-0.5 text-xs text-muted">{{ row.original.format }}<template v-if="row.original.status === 'completed'"> · {{ row.original.scoreA }}:{{ row.original.scoreB }}</template></div></template>
           <template #tournament-cell="{ row }"><span>{{ row.original.tournament || '—' }}</span><div v-if="row.original.stage" class="text-xs text-muted">{{ row.original.stage }}</div></template>
