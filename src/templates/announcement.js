@@ -3,7 +3,7 @@
  * optional player cut-out on the right, tournament/format/socials captions.
  * Evolved from the original prototype poster (v0, 1280 px) into the shared system.
  */
-import { h } from '../core/dom.js';
+import { h } from '../core/dom';
 import { defineTemplate } from './registry.js';
 import { commonSettings, ELEMENTS } from './shared/settings.js';
 import { baseLayers, playerLayer, posterRoot, teamLogo, fitText, socialsBlock, handleBlock, dateLine, perspectiveTeams, displayName } from './shared/primitives.js';

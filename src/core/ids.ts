@@ -1,5 +1,5 @@
 /** Stable local identifiers, independent from names. */
-export function createId(prefix = 'id') {
+export function createId(prefix = 'id'): string {
   const rand =
     typeof crypto !== 'undefined' && crypto.randomUUID
       ? crypto.randomUUID().replace(/-/g, '').slice(0, 16)
@@ -7,4 +7,4 @@ export function createId(prefix = 'id') {
   return `${prefix}_${rand}`;
 }
 
-export const nowIso = () => new Date().toISOString();
+export const nowIso = (): string => new Date().toISOString();

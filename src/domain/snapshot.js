@@ -12,7 +12,7 @@
  *  team:    { teamId, name, shortName, logoAssetId }   ← logoAssetId = immutable version
  *  hero:    { heroId, name, slug, attr, portraitAssetId } | null
  */
-import { nowIso } from '../core/ids.js';
+import { nowIso } from '../core/ids';
 import { winnerOf } from './series.js';
 
 export function snapshotTeam(team) {

@@ -19,7 +19,7 @@
  * would alter saved posters; old versions stay registered so history re-renders exactly.
  */
 import { BASE_STYLE } from './shared/settings.js';
-import { deepMerge } from '../core/utils.js';
+import { deepMerge } from '../core/utils';
 
 const registry = new Map(); // id -> Map(version -> template)
 

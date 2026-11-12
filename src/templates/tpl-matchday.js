@@ -3,7 +3,7 @@
  * semi-transparent rows (order, teams + logos, time, date, format, tournament).
  * Rows adapt to the count (1–6); more than 6 is a blocking error, never a silent crop.
  */
-import { h } from '../core/dom.js';
+import { h } from '../core/dom';
 import { defineTemplate } from './registry.js';
 import { commonSettings, ELEMENTS } from './shared/settings.js';
 import { baseLayers, playerLayer, posterRoot, teamLogo, fitText, handleBlock, formatLong, displayName, hexA } from './shared/primitives.js';

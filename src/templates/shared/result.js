@@ -2,7 +2,7 @@
  * Shared factory for outcome posters (WIN / LOSE): one composition system,
  * one validation rule set, parametrised by the expected outcome.
  */
-import { h } from '../../core/dom.js';
+import { h } from '../../core/dom';
 import { defineTemplate } from '../registry.js';
 import { commonSettings, ELEMENTS } from './settings.js';
 import { baseLayers, playerLayer, posterRoot, fitText, socialsBlock, handleBlock, dateLine, perspectiveTeams, displayName } from './primitives.js';

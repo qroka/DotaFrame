@@ -6,7 +6,7 @@
  * All sizes are in poster pixels of the base frame (1080 × 1080). Export scales the whole
  * frame with pixelRatio, so layout is identical for every export size.
  */
-import { h, s } from '../../core/dom.js';
+import { h, s } from '../../core/dom';
 import { backgroundCss } from './backgrounds.js';
 import { fontStyle, syntheticSkew } from './fonts.js';
 import { FORMATS } from '../../domain/series.js';

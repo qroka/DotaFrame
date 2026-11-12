@@ -6,7 +6,7 @@
  * Preview and export call exactly the same function with the same data/style,
  * so what the user sees is what gets exported.
  */
-import { collectAssetRefs } from '../core/assets.js';
+import { collectAssetRefs } from '../core/assets';
 import { getFont } from '../templates/shared/fonts.js';
 import { normalizeStyle } from '../templates/registry.js';
 

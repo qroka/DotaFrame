@@ -10,7 +10,7 @@
  * Uncertain ids are marked with "verify". Bundled portraits are used by default;
  * user-supplied immutable MediaAssets override them when present.
  */
-import { matchesQuery } from '../core/utils.js';
+import { matchesQuery } from '../core/utils';
 
 export const ATTRIBUTES = {
   str: { id: 'str', label: 'Сила', short: 'STR', color: '#e5484d' },

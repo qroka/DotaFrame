@@ -3,7 +3,7 @@
  */
 
 /** Collect every asset id referenced in a value: any string under a key ending in `assetId`. */
-export function collectAssetRefs(value, out = new Set()) {
+export function collectAssetRefs(value: unknown, out: Set<string> = new Set()): Set<string> {
   if (value == null) return out;
   if (Array.isArray(value)) {
     for (const v of value) collectAssetRefs(v, out);
@@ -17,10 +17,10 @@ export function collectAssetRefs(value, out = new Set()) {
 }
 
 /** Blob → data URL (for backups / export embedding). */
-export function blobToDataUrl(blob) {
+export function blobToDataUrl(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onload = () => resolve(reader.result);
+    reader.onload = () => resolve(reader.result as string);
     reader.onerror = () => reject(reader.error);
     reader.readAsDataURL(blob);
   });

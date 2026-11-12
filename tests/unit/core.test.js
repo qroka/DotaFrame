@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { createStore } from '../../src/editor/store.js';
-import { collectAssetRefs } from '../../src/core/assets.js';
+import { collectAssetRefs } from '../../src/core/assets';
 import { buildMatchData, snapshotTeam } from '../../src/domain/snapshot.js';
-import { deepMerge, setPath, matchesQuery, slugify } from '../../src/core/utils.js';
+import { deepMerge, setPath, matchesQuery, slugify } from '../../src/core/utils';
 import { formatPosterDate } from '../../src/domain/time.js';
 
 describe('editor store', () => {

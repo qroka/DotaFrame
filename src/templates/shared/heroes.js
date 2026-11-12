@@ -2,7 +2,7 @@
  * Hero tiles for the draft poster: portrait (snapshot asset version) or a neutral
  * placeholder with initials tinted by primary attribute; empty slot for null.
  */
-import { h, s } from '../../core/dom.js';
+import { h, s } from '../../core/dom';
 import { heroPortraitUrl } from '../../data/heroes.js';
 import { fitText } from './primitives.js';
 

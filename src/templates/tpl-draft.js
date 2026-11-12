@@ -2,7 +2,7 @@
  * Dota Draft — one map: Radiant and Dire teams, 5 picks each, variable ban lists,
  * map number, tournament, format, optional map winner.
  */
-import { h } from '../core/dom.js';
+import { h } from '../core/dom';
 import { heroPortraitUrl } from '../data/heroes.js';
 import { defineTemplate } from './registry.js';
 import { commonSettings, ELEMENTS } from './shared/settings.js';

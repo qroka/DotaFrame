@@ -2,7 +2,7 @@
  * Series Result — neutral final card: both teams, big centred score, winner highlighted.
  * Supports BO2 draws (1:1).
  */
-import { h } from '../core/dom.js';
+import { h } from '../core/dom';
 import { defineTemplate } from './registry.js';
 import { commonSettings, ELEMENTS } from './shared/settings.js';
 import { baseLayers, playerLayer, posterRoot, teamLogo, fitText, socialsBlock, handleBlock, dateLine, tournamentLine, formatLong, displayName } from './shared/primitives.js';

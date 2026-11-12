@@ -8,7 +8,7 @@
  * - `hasUnsaved()` is the O(1) variant: states are immutable, so reference equality with the saved state
  *   is enough, and it stays correct through undo/redo
  */
-import { stableStringify, clone } from '../core/utils.js';
+import { stableStringify, clone } from '../core/utils';
 
 const MAX_HISTORY = 100;
 const COALESCE_MS = 900;

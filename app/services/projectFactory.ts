@@ -1,7 +1,7 @@
 import { api } from './api'
 import { buildMatchData, buildMatchesData, buildDraftData, defaultPerspective, snapshotTeam } from '../../src/domain/snapshot.js'
 import { getTemplate, defaultStyle, defaultTexts, normalizeStyle, TEMPLATE_TYPES } from '../../src/templates/index.js'
-import { deepMerge } from '../../src/core/utils.js'
+import { deepMerge } from '../../src/core/utils'
 import type { Match, PosterProject, PosterTemplate, Team } from '~/types/dotaframe'
 
 export interface Lookups { teams: Team[], matches: Match[], teamsById: Record<string, Team> }

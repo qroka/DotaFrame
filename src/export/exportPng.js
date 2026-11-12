@@ -10,7 +10,7 @@
 import { toBlob } from 'html-to-image';
 import { renderPoster } from '../render/renderPoster.js';
 import { fontEmbedCss } from './fontEmbed.js';
-import { slugify } from '../core/utils.js';
+import { slugify } from '../core/utils';
 
 export class ExportError extends Error {
   constructor(message, cause) {

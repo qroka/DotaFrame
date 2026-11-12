@@ -7,8 +7,11 @@
  * - `on*` props register event listeners
  * - `dataset` sets data-* attributes; boolean `true` sets an empty attribute
  */
-export function h(tag, props = {}, ...children) {
-  const el = tag instanceof Element ? tag : document.createElement(tag);
+export type Child = Node | string | number | boolean | null | undefined | Child[];
+export type Props = Record<string, any> | null | undefined;
+
+export function h<T extends HTMLElement = HTMLElement>(tag: string | T, props: Props = {}, ...children: Child[]): T {
+  const el = (tag instanceof Element ? tag : document.createElement(tag)) as T;
   applyProps(el, props);
   appendChildren(el, children);
   return el;
@@ -16,7 +19,7 @@ export function h(tag, props = {}, ...children) {
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
-export function s(tag, props = {}, ...children) {
+export function s(tag: string, props: Props = {}, ...children: Child[]): SVGElement {
   const el = document.createElementNS(SVG_NS, tag);
   for (const [key, value] of Object.entries(props || {})) {
     if (value === undefined || value === null || value === false) continue;
@@ -27,13 +30,13 @@ export function s(tag, props = {}, ...children) {
   return el;
 }
 
-export function clsx(value) {
+export function clsx(value: unknown): string {
   if (!value) return '';
   if (Array.isArray(value)) return value.flat(Infinity).filter(Boolean).join(' ');
   return String(value);
 }
 
-function applyProps(el, props) {
+function applyProps(el: any, props: Props): void {
   if (!props) return;
   for (const [key, value] of Object.entries(props)) {
     if (value === undefined || value === null) continue;
@@ -65,54 +68,55 @@ function applyProps(el, props) {
   }
 }
 
-export function setStyle(el, styles) {
+export function setStyle(el: HTMLElement, styles: Record<string, unknown>): void {
   for (const [k, v] of Object.entries(styles)) {
     if (v === undefined || v === null || v === false) continue;
     if (k.startsWith('--')) el.style.setProperty(k, String(v));
-    else el.style[k] = typeof v === 'number' && !UNITLESS.has(k) ? `${v}px` : String(v);
+    else (el.style as any)[k] = typeof v === 'number' && !UNITLESS.has(k) ? `${v}px` : String(v);
   }
 }
 
 const UNITLESS = new Set(['opacity', 'zIndex', 'fontWeight', 'lineHeight', 'flex', 'flexGrow', 'flexShrink', 'order', 'scale']);
 
-export function appendChildren(el, children) {
-  for (const child of children.flat(Infinity)) {
+export function appendChildren(el: Element, children: Child[]): void {
+  for (const child of (children as any[]).flat(Infinity) as Child[]) {
     if (child === null || child === undefined || child === false || child === true) continue;
     el.append(child instanceof Node ? child : document.createTextNode(String(child)));
   }
 }
 
 /** Drop null/undefined/false from child lists (Element.replaceChildren would print "null"). */
-export const compact = (...children) => children.flat(Infinity).filter((c) => c !== null && c !== undefined && c !== false && c !== true);
+export const compact = (...children: Child[]): Child[] => (children as any[]).flat(Infinity).filter((c) => c !== null && c !== undefined && c !== false && c !== true);
 
-export function clear(el) {
+export function clear<T extends Element>(el: T): T {
   while (el.firstChild) el.firstChild.remove();
   return el;
 }
 
-export function mount(container, ...children) {
+export function mount<T extends Element>(container: T, ...children: Child[]): T {
   clear(container);
   appendChildren(container, children);
   return container;
 }
 
-export const qs = (sel, root = document) => root.querySelector(sel);
-export const qsa = (sel, root = document) => [...root.querySelectorAll(sel)];
+export const qs = <T extends Element = Element>(sel: string, root: ParentNode = document): T | null => root.querySelector<T>(sel);
+export const qsa = <T extends Element = Element>(sel: string, root: ParentNode = document): T[] => [...root.querySelectorAll<T>(sel)];
 
-export function debounce(fn, ms = 150) {
-  let t;
-  const wrapped = (...args) => {
+export function debounce<A extends unknown[]>(fn: (...args: A) => void, ms = 150) {
+  let t: ReturnType<typeof setTimeout> | undefined;
+  const wrapped = (...args: A) => {
     clearTimeout(t);
     t = setTimeout(() => fn(...args), ms);
   };
   wrapped.cancel = () => clearTimeout(t);
-  wrapped.flush = (...args) => {
+  wrapped.flush = (...args: A) => {
     clearTimeout(t);
     fn(...args);
   };
   return wrapped;
 }
 
-export function escapeHtml(str) {
-  return String(str ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+export function escapeHtml(str: unknown): string {
+  const entities: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+  return String(str ?? '').replace(/[&<>"']/g, (c) => entities[c]!);
 }
