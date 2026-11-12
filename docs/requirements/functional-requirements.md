@@ -55,7 +55,7 @@
 | PosterTemplate | id, title, type, revision, exportSize, editableOptions | Три предустановленных шаблона (1080 × 1080) |
 | PosterProject | id, matchSeriesId, templateId, templateRevision, dataSnapshot, styleOptions, savedAt | Независимая сохранённая публикация со всеми отображаемыми данными |
 
-Для MVP предполагается локальное хранение в браузере без серверной базы данных. Для изображений рассматривается IndexedDB с сохранением Blob; конкретную реализацию проверим на техническом прототипе. Отдельный справочник турниров и сущность карты в MVP не требуются.
+Данные хранятся локально в SQLite на сервере Nuxt, изображения — BLOB в таблице `media` (изначально планировался IndexedDB, см. [архив](../archive/system-overview-v0.2-indexeddb.md)). Отдельный справочник турниров и сущность карты в MVP не требуются.
 
 Расширенная схема: [модель данных](../architecture/data-model.md).
 
