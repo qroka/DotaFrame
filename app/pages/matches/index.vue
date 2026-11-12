@@ -19,7 +19,8 @@ const columns: TableColumn<Match>[] = [
 ]
 const statusOptions = [
   { label: 'Все статусы', value: 'all' }, { label: 'Запланированы', value: 'scheduled' },
-  { label: 'Идут сейчас', value: 'live' }, { label: 'Завершены', value: 'completed' }, { label: 'Отменены', value: 'cancelled' }
+  { label: 'Идут сейчас', value: 'live' }, { label: 'Завершены', value: 'completed' }, { label: 'Отменены', value: 'cancelled' },
+  { label: 'С пакетом публикаций', value: 'package' }
 ]
 const statusMeta: Record<string, { label: string, color: any }> = {
   scheduled: { label: 'Запланирован', color: 'neutral' }, live: { label: 'В эфире', color: 'error' },
@@ -27,7 +28,7 @@ const statusMeta: Record<string, { label: string, color: any }> = {
 }
 const filtered = computed(() => matches.value.filter(match => {
   const text = `${teamNames.value[match.teamAId]} ${teamNames.value[match.teamBId]} ${match.tournament}`.toLocaleLowerCase('ru')
-  return (!query.value || text.includes(query.value.toLocaleLowerCase('ru'))) && (status.value === 'all' || match.status === status.value)
+  return (!query.value || text.includes(query.value.toLocaleLowerCase('ru'))) && (status.value === 'all' || (status.value === 'package' ? !!match.source : match.status === status.value))
 }).sort((a, b) => `${b.startDate}T${b.startTime}`.localeCompare(`${a.startDate}T${a.startTime}`)))
 function askDelete(match: Match) { pendingDelete.value = match; deleteOpen.value = true }
 async function removeMatch() {
@@ -53,11 +54,11 @@ async function removeMatch() {
       <USkeleton v-if="loading" class="h-80 w-full" />
       <UCard v-else-if="filtered.length" class="shrink-0" :ui="{ body: 'p-0 sm:p-0' }">
         <UTable :data="filtered" :columns="columns">
-          <template #teams-cell="{ row }"><div class="font-medium text-highlighted">{{ teamNames[row.original.teamAId] || 'Команда A' }} — {{ teamNames[row.original.teamBId] || 'Команда B' }}</div><div class="mt-0.5 text-xs text-muted">{{ row.original.format }}<template v-if="row.original.status === 'completed'"> · {{ row.original.scoreA }}:{{ row.original.scoreB }}</template></div></template>
+          <template #teams-cell="{ row }"><div class="flex items-center gap-2 font-medium text-highlighted">{{ teamNames[row.original.teamAId] || 'Команда A' }} — {{ teamNames[row.original.teamBId] || 'Команда B' }}<UBadge v-if="row.original.source" label="PandaScore" color="primary" variant="subtle" size="sm" /></div><div class="mt-0.5 text-xs text-muted">{{ row.original.format }}<template v-if="row.original.status === 'completed'"> · {{ row.original.scoreA }}:{{ row.original.scoreB }}</template></div></template>
           <template #tournament-cell="{ row }"><span>{{ row.original.tournament || '—' }}</span><div v-if="row.original.stage" class="text-xs text-muted">{{ row.original.stage }}</div></template>
           <template #schedule-cell="{ row }"><span class="tabular-nums">{{ row.original.startDate }}</span><div class="text-xs text-muted">{{ row.original.startTime }}</div></template>
           <template #status-cell="{ row }"><UBadge :label="statusMeta[row.original.status]?.label" :color="statusMeta[row.original.status]?.color" variant="subtle" /></template>
-          <template #actions-cell="{ row }"><div class="flex justify-end"><UDropdownMenu :items="[[{ label: 'Открыть', icon: 'i-lucide-pencil', onSelect: () => navigateTo(`/matches/${row.original.id}`) }, { label: 'Создать публикацию', icon: 'i-lucide-image-plus', onSelect: () => navigateTo(`/templates?match=${row.original.id}`) }], [{ label: 'Удалить', icon: 'i-lucide-trash-2', color: 'error', onSelect: () => askDelete(row.original) }]]"><UButton icon="i-lucide-ellipsis" color="neutral" variant="ghost" aria-label="Действия с матчем" /></UDropdownMenu></div></template>
+          <template #actions-cell="{ row }"><div class="flex items-center justify-end gap-1"><UButton v-if="row.original.source" :to="`/matches/${row.original.id}/package`" label="Пакет" icon="i-lucide-package" color="neutral" variant="outline" size="sm" /><UDropdownMenu :items="[[...(row.original.source ? [{ label: 'Пакет публикаций', icon: 'i-lucide-package', onSelect: () => navigateTo(`/matches/${row.original.id}/package`) }] : []), { label: 'Открыть', icon: 'i-lucide-pencil', onSelect: () => navigateTo(`/matches/${row.original.id}`) }, { label: 'Создать публикацию', icon: 'i-lucide-image-plus', onSelect: () => navigateTo(`/templates?match=${row.original.id}`) }], [{ label: 'Удалить', icon: 'i-lucide-trash-2', color: 'error', onSelect: () => askDelete(row.original) }]]"><UButton icon="i-lucide-ellipsis" color="neutral" variant="ghost" aria-label="Действия с матчем" /></UDropdownMenu></div></template>
         </UTable>
       </UCard>
       <EmptyState v-else icon="i-lucide-swords" title="Матчи не найдены" :description="query || status !== 'all' ? 'Измените фильтры.' : 'Создайте первый матч для подготовки публикации.'" :action-label="query || status !== 'all' ? undefined : 'Добавить матч'" @action="navigateTo('/matches/new')" />

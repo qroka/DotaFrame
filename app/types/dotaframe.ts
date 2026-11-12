@@ -31,7 +31,7 @@ export interface Match {
   scoreA: number | null; scoreB: number | null; notes: string
   winnerTeamId?: string | null
   createdAt?: string; updatedAt?: string
-  source?: { provider: 'pandascore', externalId: string, syncedAt: string }
+  source?: { provider: 'pandascore', externalId: string, syncedAt: string } | null
 }
 export interface PosterProject {
   id: string | null; title: string; templateId: string; templateVersion: number
@@ -66,6 +66,11 @@ export interface PublicationPackageItem {
   key: string; kind: 'announcement' | 'draft' | 'map-result' | 'series-result' | 'team-outcome'
   title: string; templateId: string; mapNumber: number | null; gameId: string | null; externalGameId: string | null
   status: PackageItemStatus; reason: string | null; projectId: string | null
+}
+/** How a package item looks now: its saved project, or the snapshot "Создать публикацию" would make. */
+export interface PackageItemPreview {
+  key: string; source: 'project' | 'snapshot'; templateId: string; templateVersion: number
+  data: Record<string, any>; style: Record<string, any>
 }
 export interface PublicationPackage {
   match: Match; teams: Team[]; games: MatchGame[]; trackedTeamId: string | null

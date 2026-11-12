@@ -1,4 +1,4 @@
-import type { ExternalMatch, ExternalPlayer, ExternalTeamDetails, ExternalTournament, Match, PosterProject, PublicationPackage, Player, Team, Tournament } from '~/types/dotaframe'
+import type { ExternalMatch, ExternalPlayer, ExternalTeamDetails, ExternalTournament, Match, PackageItemPreview, PosterProject, PublicationPackage, Player, Team, Tournament } from '~/types/dotaframe'
 
 export interface BootstrapData { teams: Team[], tournaments: Tournament[], players: Player[], matches: Match[], projects: PosterProject[] }
 
@@ -24,6 +24,7 @@ export const api = {
     save: (value: Partial<Match>) => $fetch<Match>('/api/matches', { method: 'POST', body: value }),
     remove: (id: string) => $fetch(`/api/matches/${id}`, { method: 'DELETE' }),
     sync: (id: string) => $fetch<{ matchId: string, package: PublicationPackage }>(`/api/matches/${id}/sync`, { method: 'POST' }),
+    getPackagePreviews: (id: string, trackedTeamId?: string | null) => $fetch<PackageItemPreview[]>(`/api/matches/${id}/package/previews`, { query: trackedTeamId ? { trackedTeamId } : undefined }),
     getPackage: (id: string, trackedTeamId?: string | null) => $fetch<PublicationPackage>(`/api/matches/${id}/package`, { query: trackedTeamId ? { trackedTeamId } : undefined }),
     createPackage: (id: string, options: { trackedTeamId?: string | null, keys?: string[], forceNewVersion?: boolean } = {}) => $fetch<{ package: PublicationPackage, created: PosterProject[] }>(`/api/matches/${id}/package`, { method: 'POST', body: options })
   },

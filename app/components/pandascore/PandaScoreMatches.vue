@@ -13,7 +13,9 @@ const selectedTeamIds = shallowRef<string[]>([])
 const revealed = shallowRef(false)
 const importingId = shallowRef<string | null>(null)
 const toast = useToast()
-const { teams, refresh: refreshLocal } = useDotaFrameDb()
+const { teams, matches: localMatches, refresh: refreshLocal } = useDotaFrameDb()
+/** PandaScore match id → local match id for series that already have a publication package. */
+const importedMatches = computed(() => new Map(localMatches.value.flatMap(match => match.source ? [[match.source.externalId, match.id] as const] : [])))
 const { data, pending, error, refresh } = await useFetch('/api/integrations/pandascore/matches', {
   key: 'pandascore-matches', query: computed(() => ({ status: selected.value })), immediate: false, watch: false
 })
@@ -123,7 +125,8 @@ onMounted(async () => { selectedTeamIds.value = await api.settings.get<string[]>
         </div>
         <div class="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-default pt-4">
           <div class="text-xs text-muted"><div>{{ schedule(match) }}</div><div class="mt-1">Завершено карт: {{ match.games.filter(game => game.status === 'completed').length }}</div></div>
-          <UButton label="Создать пакет" icon="i-lucide-package-plus" :loading="importingId === match.externalId" :disabled="!match.teamA || !match.teamB || importingId !== null" @click="importMatch(match)" />
+          <UButton v-if="importedMatches.has(match.externalId)" :to="`/matches/${importedMatches.get(match.externalId)}/package`" label="Открыть пакет" icon="i-lucide-package" color="neutral" variant="outline" />
+          <UButton v-else label="Создать пакет" icon="i-lucide-package-plus" :loading="importingId === match.externalId" :disabled="!match.teamA || !match.teamB || importingId !== null" @click="importMatch(match)" />
         </div>
       </UCard>
     </div>

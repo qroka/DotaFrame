@@ -447,6 +447,47 @@ function snapshotForItem(pkg: PublicationPackage, packageItem: z.infer<typeof pa
   return { template, data: buildMatchData(snapshotMatch, teamsById, { texts, perspective }) }
 }
 
+/** Draft layout with both teams and empty pick/ban slots, so the user sees what is left to fill in. Preview only. */
+function emptyDraftSnapshot(pkg: PublicationPackage, mapNumber: number) {
+  const match = pkg.match as any
+  const teamsById = Object.fromEntries((pkg.teams as any[]).map(team => [team.id, team]))
+  const placeholder = { id: null, matchId: match.id, mapNumber, radiantTeamId: match.teamAId, direTeamId: match.teamBId, picksRadiant: [], picksDire: [], bansRadiant: [], bansDire: [], winner: null }
+  return { template: draftTemplate, data: buildDraftData(match, placeholder, teamsById, HEROES_BY_ID, {}, { texts: defaultTexts(draftTemplate) }) }
+}
+
+export interface PackageItemPreview {
+  key: string
+  source: 'project' | 'snapshot'
+  templateId: string
+  templateVersion: number
+  data: Record<string, unknown>
+  style: Record<string, unknown>
+}
+
+/**
+ * What each package item looks like right now: the saved project for created items, otherwise the
+ * snapshot that "Создать публикацию" would produce from the current match data. Items whose data cannot
+ * be built yet (for example a map that has not been played) are omitted.
+ */
+export function getPackagePreviews(matchId: string, trackedTeamId?: string | null): PackageItemPreview[] {
+  const pkg = getPublicationPackage(matchId, trackedTeamId)
+  const previews: PackageItemPreview[] = []
+  for (const packageItem of pkg.items) {
+    try {
+      const project = packageItem.projectId ? repository.projects.get(packageItem.projectId) : null
+      if (project) {
+        previews.push({ key: packageItem.key, source: 'project', templateId: String(project.templateId), templateVersion: Number(project.templateVersion), data: project.data as Record<string, unknown>, style: project.style as Record<string, unknown> })
+        continue
+      }
+      const { template, data } = packageItem.kind === 'draft' && !repository.drafts.find(matchId, packageItem.mapNumber!)
+        ? emptyDraftSnapshot(pkg, packageItem.mapNumber!)
+        : snapshotForItem(pkg, packageItem)
+      previews.push({ key: packageItem.key, source: 'snapshot', templateId: template.id, templateVersion: template.version, data, style: defaultStyle(template) })
+    } catch { /* Not renderable yet; the list still shows the item with its reason. */ }
+  }
+  return previews
+}
+
 export function createPackageProjects(matchId: string, options: { trackedTeamId?: string | null, keys?: string[], forceNewVersion?: boolean } = {}) {
   if (options.trackedTeamId) repository.settings.set('pandascore.trackedTeamId', options.trackedTeamId)
   let pkg = getPublicationPackage(matchId, options.trackedTeamId)

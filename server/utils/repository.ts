@@ -175,9 +175,14 @@ function toMatch(row: Row) {
     id: row.id, teamAId: row.team_a_id, teamBId: row.team_b_id, tournament: row.tournament, stage: row.stage,
     startDate: row.start_date, startTime: row.start_time, timezone: row.timezone, format: row.format, status: row.status,
     scoreA: row.score_a, scoreB: row.score_b, winnerTeamId: row.winner_team_id, notes: row.notes,
-    createdAt: row.created_at, updatedAt: row.updated_at
+    createdAt: row.created_at, updatedAt: row.updated_at,
+    source: row.ps_external_id ? { provider: 'pandascore', externalId: row.ps_external_id, syncedAt: row.ps_synced_at } : null
   }
 }
+
+/** Matches with their PandaScore link (if any), so the UI knows which ones have a publication package. */
+const MATCH_SELECT = `SELECT m.*, e.external_id AS ps_external_id, e.synced_at AS ps_synced_at FROM matches m
+LEFT JOIN external_entities e ON e.provider = 'pandascore' AND e.entity_type = 'match' AND e.local_id = m.id`
 
 function toProject(row: Row) {
   return {
@@ -293,9 +298,9 @@ export const repository = {
   },
 
   matches: {
-    list: () => all('SELECT * FROM matches ORDER BY start_date DESC, start_time DESC').map(toMatch),
+    list: () => all(`${MATCH_SELECT} ORDER BY m.start_date DESC, m.start_time DESC`).map(toMatch),
     get(key: string) {
-      const row = one('SELECT * FROM matches WHERE id = ?', key)
+      const row = one(`${MATCH_SELECT} WHERE m.id = ?`, key)
       return row ? toMatch(row) : null
     },
     save(input: unknown) {
