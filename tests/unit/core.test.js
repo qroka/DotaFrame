@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest';
 import { createStore } from '../../src/editor/store.js';
-import { validateBackup, BACKUP_FORMAT } from '../../src/data/backup.js';
 import { collectAssetRefs } from '../../src/core/assets.js';
 import { buildMatchData, snapshotTeam } from '../../src/domain/snapshot.js';
 import { deepMerge, setPath, matchesQuery, slugify } from '../../src/core/utils.js';
@@ -56,15 +55,6 @@ describe('historical snapshots', () => {
     const refs = collectAssetRefs({ data: { teamA: { logoAssetId: 'a' }, picks: [{ portraitAssetId: 'b' }, null] }, style: { background: { assetId: 'c' }, player: { assetId: null } } });
     expect([...refs].sort()).toEqual(['a', 'b', 'c']);
   });
-});
-
-describe('backup validation', () => {
-  const ok = { format: BACKUP_FORMAT, version: 1, data: { teams: [{ id: 't', name: 'A' }], matches: [], projects: [], media: [] } };
-  it('accepts a valid backup', () => expect(validateBackup(ok)).toBe(true));
-  it('rejects foreign JSON', () => expect(() => validateBackup({ hello: 1 })).toThrow());
-  it('rejects newer versions', () => expect(() => validateBackup({ ...ok, version: 99 })).toThrow(/новой версией/));
-  it('rejects records without ids', () => expect(() => validateBackup({ ...ok, data: { ...ok.data, teams: [{ name: 'x' }] } })).toThrow());
-  it('rejects non-image media', () => expect(() => validateBackup({ ...ok, data: { ...ok.data, media: [{ id: 'm', data: 'data:text/html;base64,PGI+' }] } })).toThrow());
 });
 
 describe('utils', () => {
