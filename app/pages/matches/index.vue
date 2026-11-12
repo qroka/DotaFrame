@@ -8,6 +8,17 @@ definePageMeta({ layout: 'dashboard' })
 useHead({ title: 'Матчи' })
 const { matches, teams, loading, refresh } = useDotaFrameDb()
 const toast = useToast()
+const route = useRoute()
+const router = useRouter()
+// "Поиск в PandaScore" is a tab of this page; ?tab=pandascore makes it linkable.
+const tabs = [
+  { label: 'В студии', value: 'local', icon: 'i-lucide-swords' },
+  { label: 'Поиск в PandaScore', value: 'pandascore', icon: 'i-lucide-cloud-download' }
+]
+const tab = computed({
+  get: () => route.query.tab === 'pandascore' ? 'pandascore' : 'local',
+  set: (value: string) => { router.replace({ path: '/matches', query: value === 'pandascore' ? { tab: 'pandascore' } : {} }) }
+})
 const query = shallowRef('')
 const status = shallowRef('all')
 const deleteOpen = shallowRef(false)
@@ -46,12 +57,14 @@ async function removeMatch() {
       <AppPageHeader title="Матчи" description="Расписание, результаты и источники данных для публикаций">
         <template #actions><UButton to="/matches/new" label="Добавить матч" icon="i-lucide-plus" /></template>
       </AppPageHeader>
-      <UDashboardToolbar>
+      <div class="border-b border-default px-4 py-2 sm:px-6"><UTabs v-model="tab" :items="tabs" :content="false" size="sm" class="w-full sm:w-auto" /></div>
+      <UDashboardToolbar v-if="tab === 'local'">
         <template #left><div class="flex w-full gap-2"><UInput v-model="query" icon="i-lucide-search" placeholder="Команда или турнир…" class="w-full sm:w-72" /><USelect v-model="status" value-key="value" :items="statusOptions" class="w-44" /></div></template>
       </UDashboardToolbar>
     </template>
     <template #body>
-      <USkeleton v-if="loading" class="h-80 w-full" />
+      <UContainer v-if="tab === 'pandascore'" class="w-full py-2"><PandascorePandaScoreMatches /></UContainer>
+      <USkeleton v-else-if="loading" class="h-80 w-full" />
       <UCard v-else-if="filtered.length" class="shrink-0" :ui="{ body: 'p-0 sm:p-0' }">
         <UTable :data="filtered" :columns="columns">
           <template #teams-cell="{ row }"><div class="flex items-center gap-2 font-medium text-highlighted">{{ teamNames[row.original.teamAId] || 'Команда A' }} — {{ teamNames[row.original.teamBId] || 'Команда B' }}<UBadge v-if="row.original.source" label="PandaScore" color="primary" variant="subtle" size="sm" /></div><div class="mt-0.5 text-xs text-muted">{{ row.original.format }}<template v-if="row.original.status === 'completed'"> · {{ row.original.scoreA }}:{{ row.original.scoreB }}</template></div></template>

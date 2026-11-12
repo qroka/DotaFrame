@@ -4,7 +4,7 @@ import { openApp } from './helpers.js'
 test('PandaScore match import, package readiness, sync and deduplication', async ({ page, request }) => {
   const localTeam = await request.post('/api/teams', { data: { name: 'Alpha', shortName: 'ALP', region: '', notes: '', logoAssetId: null } })
   expect(localTeam.ok()).toBe(true)
-  await openApp(page)
+  await openApp(page, '/matches?tab=pandascore')
   await expect(page.getByRole('heading', { name: 'Матчи PandaScore' })).toBeVisible()
   await expect(page.getByText('Dota League')).toHaveCount(0)
   await page.getByText('Выберите команды', { exact: true }).click()
