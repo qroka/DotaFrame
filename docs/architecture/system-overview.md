@@ -11,7 +11,7 @@
 - **Данные вводятся один раз.** Команды и матчи живут в справочниках, публикации создаются из них.
 - **Неизменяемый снимок.** Публикация хранит собственный снимок данных (`project.data`), оформление (`project.style`) и версию шаблона. Смена логотипа, названия или счёта не меняет сохранённые постеры. Обновить снимок можно только явным действием «Обновить из матча».
 - **Предпросмотр = экспорт.** Один конвейер `renderPoster` отдаёт DOM и для экрана, и для PNG.
-- **Рендер не зависит от фреймворка.** `src/domain`, `src/templates`, `src/render` — чистый JS без Vue и без хранилища; на них опираются и клиент, и сервер.
+- **Рендер не зависит от фреймворка.** `src/domain`, `src/templates`, `src/render` — чистый TypeScript без Vue и без хранилища; на них опираются и клиент, и сервер.
 
 ## 2. Состав
 
@@ -23,8 +23,8 @@ flowchart TD
     REPO["server/utils/repository.ts"]
     DB[("SQLite .data/dotaframe.sqlite")]
     DOM["src/domain: правила серий, драфт, снимки"]
-    TPL["src/templates: реестр, tpl-*.js"]
-    REN["src/render/renderPoster.js"]
+    TPL["src/templates: реестр, tpl-*.ts"]
+    REN["src/render/renderPoster.ts"]
     EXP["src/export: PNG, встраивание шрифтов"]
     EXT["PandaScore / OpenDota"]
     UI --> SVC --> API --> REPO --> DB
@@ -47,12 +47,12 @@ Nuxt работает как SPA (`ssr: false`) и одновременно ка
 | `app/services` | `api.ts` — типизированный клиент; `projectFactory.ts` — сборка данных и состояния публикации |
 | `server/api` | REST-маршруты: `teams`, `matches`, `drafts`, `projects`, `media`, `settings`, `bootstrap`, `backup`, `system`, `integrations/pandascore` |
 | `server/utils` | `database.ts` (подключение, миграции), `repository.ts` (запросы), `providers/*` и `pandascore-import.ts` (внешние данные) |
-| `src/core` | Идентификаторы, события, DOM-хелперы, утилиты, `assets.js` |
+| `src/core` | Идентификаторы, события, DOM-хелперы, утилиты, `assets.ts` |
 | `src/domain` | Правила серий и счёта, время, драфт, построение снимков |
-| `src/data` | Только статический каталог героев (`heroes.js`) |
-| `src/templates` | Реестр шаблонов, общие примитивы, темы, фоны, шрифты, `tpl-*.js` |
+| `src/data` | Только статический каталог героев (`heroes.ts`) |
+| `src/templates` | Реестр шаблонов, общие примитивы, темы, фоны, шрифты, `tpl-*.ts`, контракт шаблона в `types.ts` |
 | `src/render`, `src/export` | Рендер постера; PNG-экспорт (`html-to-image`) |
-| `src/editor/store.js` | История состояния (undo/redo) |
+| `src/editor/store.ts` | История состояния (undo/redo) |
 
 ## 4. Хранение
 

@@ -39,7 +39,7 @@ npm run dev
 | `npm run dev` | сервер разработки |
 | `npm run build` | production-сборка Nuxt в `.output/` |
 | `npm run preview` | просмотр production-сборки |
-| `npm run typecheck` | проверка Vue/TypeScript-кода |
+| `npm run typecheck` | проверка Vue/TypeScript-кода, включая `src/` в строгом режиме |
 | `npm test` | юнит-тесты (Vitest) |
 | `npm run test:e2e` | сквозные тесты в Chromium |
 | `npm run test:e2e:cross-browser` | сквозные тесты в Chromium и Firefox |
@@ -74,8 +74,8 @@ src/
   core/                   DOM-хелперы, события, id, утилиты
   domain/                 правила серий, время, драфт, построение снимков (чистые функции)
   data/                   каталог героев
-  templates/              реестр шаблонов, общие примитивы, темы, фоны, шрифты, шаблоны tpl-*.js
-  render/renderPoster.js  единый конвейер рендера: предпросмотр = экспорт
+  templates/              реестр шаблонов, общие примитивы, темы, фоны, шрифты, шаблоны tpl-*.ts, типы в types.ts
+  render/renderPoster.ts  единый конвейер рендера: предпросмотр = экспорт
   export/                 PNG-экспорт (html-to-image) и встраивание шрифтов
   editor/                 чистая сборка снимков и история состояния
   styles/poster.css       изолированные стили экспортируемых постеров
@@ -103,8 +103,8 @@ docs/                     требования, архитектура, моде
 
 ### Как добавить шаблон
 
-1. Создайте `src/templates/tpl-<name>.js`, который по умолчанию экспортирует `defineTemplate({...})`. Обязательные поля: `id`, `type`, `version`, `name`, `source` (`match` | `matches` | `draft`), `base`, `render(ctx)`. Дополнительно: `exportSizes`, `texts`, `settings`, `defaults`, `validate`, `order`.
-2. Соберите композицию из примитивов `templates/shared/primitives.js`: слои фона, затемнения, градиента и игрока, `teamLogo`, `fitText`, `dateLine`, `tournamentLine` и другие. Настройки возьмите из `commonSettings()` и дополните своими дескрипторами.
+1. Создайте `src/templates/tpl-<name>.ts`, который по умолчанию экспортирует `defineTemplate<Данные>({...})` (типы — в `src/templates/types.ts` и `src/types.ts`). Обязательные поля: `id`, `type`, `version`, `name`, `source` (`match` | `matches` | `draft`), `base`, `render(ctx)`. Дополнительно: `exportSizes`, `texts`, `settings`, `defaults`, `validate`, `order`.
+2. Соберите композицию из примитивов `templates/shared/primitives.ts`: слои фона, затемнения, градиента и игрока, `teamLogo`, `fitText`, `dateLine`, `tournamentLine` и другие. Настройки возьмите из `commonSettings()` и дополните своими дескрипторами.
 3. Файл подхватывается автоматически, редактор менять не нужно: панель оформления строится по дескрипторам.
 4. Если изменение шаблона меняет внешний вид уже сохранённых постеров, оставьте старый модуль и зарегистрируйте новый объект с тем же `id` и большим `version`.
 
