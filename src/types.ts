@@ -10,15 +10,14 @@ export type HeroAttr = 'str' | 'agi' | 'int' | 'all'
 export type PosterTexts = Record<string, string>
 
 /** Team as stored in the directory (only the fields posters need). */
-export interface TeamRecord {
+export type TeamRecord = {
   id: string
   name: string
   shortName?: string | null
-  logoAssetId?: string | null
-}
+  logoAssetId?: string | null}
 
 /** Match as edited in forms: scores may be empty strings, ids may be missing until chosen. */
-export interface MatchRecord {
+export type MatchRecord = {
   id?: string | null
   teamAId?: string | null
   teamBId?: string | null
@@ -30,11 +29,10 @@ export interface MatchRecord {
   format: string
   status: string
   scoreA?: number | string | null
-  scoreB?: number | string | null
-}
+  scoreB?: number | string | null}
 
 /** Working draft of one map (hero ids; null = empty pick slot). */
-export interface DraftRecord {
+export type DraftRecord = {
   id?: string | null
   matchId?: string | null
   mapNumber: number
@@ -44,36 +42,32 @@ export interface DraftRecord {
   picksDire?: Array<number | string | null>
   bansRadiant?: Array<number | string | null>
   bansDire?: Array<number | string | null>
-  winner?: 'radiant' | 'dire' | null
-}
+  winner?: 'radiant' | 'dire' | null}
 
-export interface Hero {
+export type Hero = {
   id: number
   slug: string
   name: string
   attr: HeroAttr
-  aliases: string[]
-}
+  aliases: string[]}
 
 /* ---------- Snapshots: the JSON a saved poster renders from ---------- */
 
 /** `logoAssetId` points at an immutable media version. */
-export interface TeamSnapshot {
+export type TeamSnapshot = {
   teamId: string | null
   name: string
   shortName: string
-  logoAssetId: string | null
-}
+  logoAssetId: string | null}
 
-export interface HeroSnapshot {
+export type HeroSnapshot = {
   heroId: number | string
   name: string
   slug: string
   attr: string
-  portraitAssetId: string | null
-}
+  portraitAssetId: string | null}
 
-export interface MatchSnapshot {
+export type MatchSnapshot = {
   matchId: string | null
   teamA: TeamSnapshot
   teamB: TeamSnapshot
@@ -86,25 +80,22 @@ export interface MatchSnapshot {
   status: string
   scoreA: number | null
   scoreB: number | null
-  winner: SeriesWinner
-}
+  winner: SeriesWinner}
 
-export interface MatchPosterData extends MatchSnapshot {
+export type MatchPosterData = MatchSnapshot & {
   kind: 'match'
   perspective: Side
   texts: PosterTexts
-  capturedAt?: string
-}
+  capturedAt?: string}
 
-export interface MatchesPosterData {
+export type MatchesPosterData = {
   kind: 'matches'
   items: MatchSnapshot[]
   date: string
   texts: PosterTexts
-  capturedAt?: string
-}
+  capturedAt?: string}
 
-export interface DraftPosterData extends MatchSnapshot {
+export type DraftPosterData = MatchSnapshot & {
   kind: 'draft'
   draftId?: string | null
   mapNumber: number
@@ -117,8 +108,7 @@ export interface DraftPosterData extends MatchSnapshot {
   mapWinner: string | null
   perspective: Side
   texts: PosterTexts
-  capturedAt?: string
-}
+  capturedAt?: string}
 
 export type PosterData = MatchPosterData | MatchesPosterData | DraftPosterData
 export type PosterSource = 'match' | 'matches' | 'draft'

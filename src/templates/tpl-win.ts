@@ -1,5 +1,5 @@
 /** WIN — victory of the selected team: huge WIN + series score, opponent caption. */
-import { createOutcomeTemplate } from './shared/result.js';
+import { createOutcomeTemplate } from './shared/result';
 
 export default createOutcomeTemplate({
   id: 'win',

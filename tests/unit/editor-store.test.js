@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createStore } from '../../src/editor/store.js';
+import { createStore } from '../../src/editor/store';
 
 const init = { title: 'A', templateId: 't', data: { x: 1 }, style: { y: 1 }, size: '1080x1080' };
 

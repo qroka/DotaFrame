@@ -8,36 +8,49 @@
  * - `hasUnsaved()` is the O(1) variant: states are immutable, so reference equality with the saved state
  *   is enough, and it stays correct through undo/redo
  */
-import { stableStringify, clone } from '../core/utils';
+import { stableStringify, clone, type AnyRecord } from '../core/utils';
 
 const MAX_HISTORY = 100;
 const COALESCE_MS = 900;
 
-export function createStore(initial, { savedState = null } = {}) {
-  let state = clone(initial);
-  let past = [];
-  let future = [];
-  let lastCoalesce = null;
-  let savedKey = savedState ? keyOf(savedState) : null;
-  let savedRef = null;
-  const initialKey = keyOf(initial);
-  const listeners = new Set();
+/** The part of a publication the editor edits; extra fields (id, matchId, ...) are carried along untouched. */
+export interface EditorState {
+  title: string;
+  templateId: string;
+  data: AnyRecord;
+  style: AnyRecord;
+  size: string;
+}
 
-  function keyOf(s) {
+export interface CommitMeta { label?: string; coalesce?: string | null; source?: string }
+export type StoreEvent = { type: 'commit' | 'undo' | 'redo'; label: string; source?: string } | { type: 'reset' | 'saved' };
+type HistoryEntry<S> = { state: S; label: string };
+
+export function createStore<S extends EditorState>(initial: S, { savedState = null }: { savedState?: S | null } = {}) {
+  let state: S = clone(initial);
+  let past: Array<HistoryEntry<S>> = [];
+  let future: Array<HistoryEntry<S>> = [];
+  let lastCoalesce: { key: string; at: number } | null = null;
+  let savedKey: string | null = savedState ? keyOf(savedState) : null;
+  let savedRef: S | null = null;
+  const initialKey = keyOf(initial);
+  const listeners = new Set<(state: S, meta: StoreEvent) => void>();
+
+  function keyOf(s: EditorState): string {
     return stableStringify({ title: s.title, templateId: s.templateId, data: s.data, style: s.style, size: s.size });
   }
 
-  function notify(meta) {
+  function notify(meta: StoreEvent): void {
     for (const fn of listeners) fn(state, meta);
   }
 
   return {
     get: () => state,
-    subscribe(fn) {
+    subscribe(fn: (state: S, meta: StoreEvent) => void): () => void {
       listeners.add(fn);
-      return () => listeners.delete(fn);
+      return () => { listeners.delete(fn); };
     },
-    commit(next, { label = 'Изменение', coalesce = /** @type {string | null} */ (null), source = 'user' } = {}) {
+    commit(next: S, { label = 'Изменение', coalesce = null, source = 'user' }: CommitMeta = {}): void {
       if (next === state) return;
       const now = Date.now();
       const merge = coalesce && lastCoalesce && lastCoalesce.key === coalesce && now - lastCoalesce.at < COALESCE_MS;
@@ -51,7 +64,7 @@ export function createStore(initial, { savedState = null } = {}) {
       notify({ type: 'commit', label, source });
     },
     /** Replace state without history (initial load, after save). */
-    reset(next, { saved = false } = {}) {
+    reset(next: S, { saved = false }: { saved?: boolean } = {}): void {
       state = next;
       past = [];
       future = [];
@@ -62,7 +75,7 @@ export function createStore(initial, { savedState = null } = {}) {
       }
       notify({ type: 'reset' });
     },
-    undo() {
+    undo(): string | null {
       const entry = past.pop();
       if (!entry) return null;
       future.push({ state, label: entry.label });
@@ -71,7 +84,7 @@ export function createStore(initial, { savedState = null } = {}) {
       notify({ type: 'undo', label: entry.label });
       return entry.label;
     },
-    redo() {
+    redo(): string | null {
       const entry = future.pop();
       if (!entry) return null;
       past.push({ state, label: entry.label });
@@ -82,7 +95,7 @@ export function createStore(initial, { savedState = null } = {}) {
     },
     canUndo: () => past.length > 0,
     canRedo: () => future.length > 0,
-    markSaved(s = state) {
+    markSaved(s: S = state): void {
       savedKey = keyOf(s);
       savedRef = s;
       notify({ type: 'saved' });

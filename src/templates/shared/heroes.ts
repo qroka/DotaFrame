@@ -4,30 +4,30 @@
  */
 import { h, s } from '../../core/dom';
 import { heroPortraitUrl } from '../../data/heroes';
-import { fitText } from './primitives.js';
+import type { HeroSnapshot } from '../../types';
+import type { RenderContext } from '../types';
+import { fitText } from './primitives';
 
-export const ATTR_COLORS = {
+export const ATTR_COLORS: Record<string, string> = {
   str: '#e0563f',
   agi: '#3fbf6a',
   int: '#3d8bfd',
   all: '#b58cff',
 };
 
-export const attrColor = (attr) => ATTR_COLORS[attr] ?? '#8a8f99';
+export const attrColor = (attr: string): string => ATTR_COLORS[attr] ?? '#8a8f99';
 
-function initials(name = '') {
+function initials(name = ''): string {
   const words = String(name).replace(/[^\p{L}\p{N}\s-]/gu, '').split(/[\s-]+/).filter(Boolean);
   if (!words.length) return '?';
-  if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
-  return (words[0][0] + words[1][0]).toUpperCase();
+  if (words.length === 1) return words[0]!.slice(0, 2).toUpperCase();
+  return ((words[0]![0] ?? '') + (words[1]![0] ?? '')).toUpperCase();
 }
 
 /**
- * @param ctx poster ctx
- * @param hero snapshot hero | null
- * @param {{ width, height, banned?, showName?, nameSize? }} opts
+ * `hero` is a snapshot hero or null (empty slot).
  */
-export function heroTile(ctx, hero, { width, height, banned = false, showName = true, nameSize = 18, radius = 6 } = {}) {
+export function heroTile(ctx: RenderContext, hero: HeroSnapshot | null, { width, height, banned = false, showName = true, nameSize = 18, radius = 6 }: { width: number; height: number; banned?: boolean; showName?: boolean; nameSize?: number; radius?: number }): HTMLElement {
   const box = h('div', {
     class: ['df-hero', banned && 'df-hero--ban', !hero && 'df-hero--empty'],
     style: { width: `${width}px`, height: `${height}px`, borderRadius: `${radius}px` },

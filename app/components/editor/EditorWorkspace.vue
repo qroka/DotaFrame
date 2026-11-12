@@ -21,7 +21,7 @@ async function exportPng() {
   if (!current || !tpl) return
   exporting.value = true
   try {
-    const { renderPng, downloadBlob, exportFileName } = await import('~~/src/export/exportPng.js')
+    const { renderPng, downloadBlob, exportFileName } = await import('~~/src/export/exportPng')
     const size = tpl.exportSizes.find(item => item.id === current.size) ?? tpl.exportSizes[0]!
     const result = await renderPng({ template: tpl, data: current.data, style: current.style, size })
     downloadBlob(result.blob, exportFileName(current.title, tpl.id, size))

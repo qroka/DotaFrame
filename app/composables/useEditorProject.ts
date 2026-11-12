@@ -1,4 +1,4 @@
-import { createStore } from '~~/src/editor/store.js'
+import { createStore } from '~~/src/editor/store'
 import { api } from '~/services/api'
 import type { Match, PosterProject, PosterTemplate, Team } from '~/types/dotaframe'
 
@@ -27,7 +27,7 @@ export function useEditorProject(options: EditorProjectOptions) {
   const selectedMatchIds = computed<string[]>(() => (project.value?.data.items as Array<{ matchId?: string }> | undefined)?.map(item => item.matchId).filter((id): id is string => !!id) ?? options.matchIds ?? [])
 
   let store: Store | null = null
-  let registry: typeof import('~~/src/templates/index.js') | null = null
+  let registry: typeof import('~~/src/templates/index') | null = null
   let factory: typeof import('~/services/projectFactory') | null = null
 
   const lookups = (): Lookups => ({ teams: teams.value, matches: matches.value, teamsById: Object.fromEntries(teams.value.map(team => [team.id, team])) })
@@ -50,7 +50,7 @@ export function useEditorProject(options: EditorProjectOptions) {
 
   async function load() {
     try {
-      const [registryModule, factoryModule] = await Promise.all([import('~~/src/templates/index.js'), import('~/services/projectFactory')])
+      const [registryModule, factoryModule] = await Promise.all([import('~~/src/templates/index'), import('~/services/projectFactory')])
       registry = registryModule
       factory = factoryModule
       templates.value = registryModule.listTemplates() as PosterTemplate[]

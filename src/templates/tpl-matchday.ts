@@ -4,22 +4,24 @@
  * Rows adapt to the count (1–6); more than 6 is a blocking error, never a silent crop.
  */
 import { h } from '../core/dom';
-import { defineTemplate } from './registry.js';
-import { commonSettings, ELEMENTS } from './shared/settings.js';
-import { baseLayers, playerLayer, posterRoot, teamLogo, fitText, handleBlock, formatLong, displayName, hexA } from './shared/primitives.js';
+import { defineTemplate } from './registry';
+import { commonSettings, ELEMENTS } from './shared/settings';
+import { baseLayers, playerLayer, posterRoot, teamLogo, fitText, handleBlock, formatLong, displayName, hexA } from './shared/primitives';
 import { formatPosterDate, weekday, tzShort } from '../domain/time';
+import type { MatchesPosterData, TeamSnapshot } from '../types';
+import type { PosterIssue } from './types';
 
 export const MATCHDAY_MAX = 6;
 
 /** Density presets by row count. */
-function density(n) {
+function density(n: number) {
   if (n === 1) return { rowH: 128, gap: 0, logo: 54, name: 41, time: 101, meta: 41, num: 54, lineGap: 20, metaW: 250 };
   if (n <= 2) return { rowH: 126, gap: 20, logo: 44, name: 34, time: 68, meta: 24, num: 46, lineGap: 16, metaW: 250 };
   if (n <= 4) return { rowH: 104, gap: 16, logo: 31, name: 26, time: 48, meta: 18, num: 38, lineGap: 11, metaW: 230 };
   return { rowH: 82, gap: 12, logo: 24, name: 20, time: 34, meta: 13, num: 30, lineGap: 6, metaW: 205 };
 }
 
-export default defineTemplate({
+export default defineTemplate<MatchesPosterData>({
   id: 'matchday',
   type: 'matchday',
   version: 1,
@@ -59,7 +61,7 @@ export default defineTemplate({
     { key: 'rowOpacity', type: 'range', label: 'Плотность плашек', group: 'layout', min: 0, max: 90, step: 1, unit: '%' },
   ],
   validate(data) {
-    const out = [];
+    const out: PosterIssue[] = [];
     const items = data.items ?? [];
     if (!items.length) out.push({ level: 'error', message: 'Добавьте хотя бы один матч' });
     if (items.length > MATCHDAY_MAX) out.push({ level: 'error', message: `Максимум ${MATCHDAY_MAX} матчей — уберите лишние или разделите на две публикации (сейчас ${items.length})` });
@@ -80,7 +82,7 @@ export default defineTemplate({
     const rowW = hasPlayer ? 700 : 979;
 
     const headerDate = style.showHeaderDate && data.date ? `${formatPosterDate(data.date, style.dateStyle)} ${weekday(data.date, 'ru')}` : '';
-    const sameValue = (key) => items.length > 0 && items.every((it) => it[key] === items[0][key]) ? items[0][key] : '';
+    const sameValue = (key: 'tournament' | 'stage'): string => items.length > 0 && items.every((it) => it[key] === items[0]![key]) ? items[0]![key] : '';
     const sharedTournament = style.show.tournament ? sameValue('tournament') : '';
     const sharedStage = style.show.stage ? sameValue('stage') : '';
     const header = h(
@@ -93,12 +95,12 @@ export default defineTemplate({
     );
 
     // Same date for every row → don't repeat it in each row.
-    const sameDate = items.length > 0 && items.every((it) => it.startDate === items[0].startDate) && items[0].startDate === data.date && style.showHeaderDate;
+    const sameDate = items.length > 0 && items.every((it) => it.startDate === items[0]!.startDate) && items[0]!.startDate === data.date && style.showHeaderDate;
     const metaW = d.metaW;
     const numW = style.showNumbers ? d.num * 1.15 : 0;
     const teamsW = rowW - 3 - 20 - numW - metaW;
 
-    const teamLine = (team) =>
+    const teamLine = (team: TeamSnapshot) =>
       h(
         'div',
         { style: { display: 'flex', alignItems: 'center', gap: `${Math.round(d.logo * 0.35)}px` } },
@@ -131,7 +133,7 @@ export default defineTemplate({
       );
     });
     // Accent colour for numbers / times.
-    for (const row of rows) row.querySelectorAll(':scope > .df-fit:first-child').forEach((n) => (n.style.color = style.accent));
+    for (const row of rows) row.querySelectorAll<HTMLElement>(':scope > .df-fit:first-child').forEach((n) => (n.style.color = style.accent));
 
     const totalH = items.length * d.rowH + Math.max(0, items.length - 1) * d.gap;
     const list = h(
@@ -154,7 +156,7 @@ export default defineTemplate({
         ? fitText([style.socials.line1, style.socials.line2].filter((l) => l?.trim()).join('   ·   '), { ctx, size: 27, min: 12, width: 620, align: 'right', label: 'Соцсети' })
         : h('div'),
     );
-    footer.lastChild.style.textTransform = 'lowercase';
+    (footer.lastChild as HTMLElement).style.textTransform = 'lowercase';
 
     return posterRoot(ctx, 'tpl-matchday', ...baseLayers(ctx), playerLayer(ctx, { anchor: 'right', height: 1000 }), h('div', { class: 'df-content' }, header, matchGroup, footer));
   },

@@ -3,12 +3,14 @@
  * Supports BO2 draws (1:1).
  */
 import { h } from '../core/dom';
-import { defineTemplate } from './registry.js';
-import { commonSettings, ELEMENTS } from './shared/settings.js';
-import { baseLayers, playerLayer, posterRoot, teamLogo, fitText, socialsBlock, handleBlock, dateLine, tournamentLine, formatLong, displayName } from './shared/primitives.js';
+import { defineTemplate } from './registry';
+import { commonSettings, ELEMENTS } from './shared/settings';
+import { baseLayers, playerLayer, posterRoot, teamLogo, fitText, socialsBlock, handleBlock, dateLine, tournamentLine, formatLong, displayName } from './shared/primitives';
 import { validateScore } from '../domain/series';
+import type { MatchPosterData, Side, TeamSnapshot } from '../types';
+import type { PosterIssue } from './types';
 
-export default defineTemplate({
+export default defineTemplate<MatchPosterData>({
   id: 'series-result',
   type: 'series-result',
   version: 1,
@@ -33,14 +35,14 @@ export default defineTemplate({
     { key: 'useShortNames', type: 'toggle', label: 'Короткие названия', group: 'layout' },
   ],
   validate(data) {
-    const out = [];
+    const out: PosterIssue[] = [];
     if (!data.teamA?.name || !data.teamB?.name) out.push({ level: 'error', message: 'Нужны обе команды' });
     if (data.status !== 'completed') {
       out.push({ level: 'error', message: 'Серия ещё не завершена — укажите итоговый счёт и статус «Завершён» в матче' });
       return out;
     }
     const res = validateScore(data.format, 'completed', data.scoreA, data.scoreB);
-    if (!res.ok) out.push({ level: 'error', message: res.errors[0] });
+    if (!res.ok) out.push({ level: 'error', message: res.errors[0]! });
     return out;
   },
   render(ctx) {
@@ -48,7 +50,7 @@ export default defineTemplate({
     const t = data.texts ?? {};
     const P = 60;
     const w = data.status === 'completed' ? data.winner : null;
-    const dim = (side) => (style.dimLoser && w && w !== 'draw' && w !== side ? '0.45' : '1');
+    const dim = (side: Side) => (style.dimLoser && w && w !== 'draw' && w !== side ? '0.45' : '1');
     const hasScore = data.scoreA !== null && data.scoreA !== undefined && data.scoreB !== null && data.scoreB !== undefined;
 
     const top = h(
@@ -58,7 +60,7 @@ export default defineTemplate({
       tournamentLine(ctx) ? fitText(tournamentLine(ctx), { ctx, size: 30, min: 16, width: 900, weight: 600, align: 'center', label: 'Турнир', className: 'df-trim', letterSpacing: '0.04em' }) : null,
     );
 
-    const side = (team, key, score) =>
+    const side = (team: TeamSnapshot, key: Side) =>
       h(
         'div',
         { style: { width: '330px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '26px', opacity: dim(key) } },
@@ -68,8 +70,8 @@ export default defineTemplate({
           ? fitText(t.winnerLabel || 'WINNER', { ctx, size: 22, min: 12, width: 300, weight: 700, align: 'center', label: 'Победитель', className: 'df-trim', letterSpacing: '0.18em' })
           : h('div', { style: { height: '22px' } }),
       );
-    const winnerTag = (el) => {
-      const last = el.lastChild;
+    const winnerTag = (el: HTMLElement) => {
+      const last = el.lastChild as HTMLElement | null;
       if (last?.classList?.contains('df-fit')) last.style.color = style.accent;
       return el;
     };
@@ -82,7 +84,7 @@ export default defineTemplate({
     );
     if (w === 'A' || w === 'B') {
       // Accent the winner's digit.
-      const inner = scoreEl.firstChild.firstChild;
+      const inner = scoreEl.firstChild!.firstChild as HTMLElement;
       const [a, b] = [data.scoreA, data.scoreB];
       inner.replaceChildren(h('span', { style: { color: w === 'A' ? style.accent : 'inherit' } }, String(a)), h('span', { style: { opacity: '0.6' } }, ':'), h('span', { style: { color: w === 'B' ? style.accent : 'inherit' } }, String(b)));
     }

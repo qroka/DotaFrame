@@ -24,7 +24,7 @@ async function render() {
   rendering.value = true
   const target = document.createElement('div')
   try {
-    const { renderPoster } = await import('~~/src/render/renderPoster.js')
+    const { renderPoster } = await import('~~/src/render/renderPoster')
     const result = await renderPoster(target, { template: props.template, data: props.data, style: props.style, mode: 'preview' })
     if (run !== sequence || !host.value) return
     host.value.replaceChildren(...target.childNodes)

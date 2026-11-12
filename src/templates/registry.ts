@@ -18,13 +18,16 @@
  * Versions: register a new object with the same id and a higher `version` when a change
  * would alter saved posters; old versions stay registered so history re-renders exactly.
  */
-import { BASE_STYLE } from './shared/settings.js';
+import { BASE_STYLE } from './shared/settings';
 import { deepMerge } from '../core/utils';
+import type { PosterStyle, PosterTemplate, TemplateDefinition } from './types';
 
-const registry = new Map(); // id -> Map(version -> template)
+export type { PosterTemplate, TemplateDefinition } from './types';
 
-export function defineTemplate(def) {
-  const required = ['id', 'type', 'version', 'name', 'source', 'base', 'render'];
+const registry = new Map<string, Map<number, PosterTemplate>>(); // id -> Map(version -> template)
+
+export function defineTemplate<D = any>(def: TemplateDefinition<D>): PosterTemplate<D> {
+  const required = ['id', 'type', 'version', 'name', 'source', 'base', 'render'] as const;
   for (const key of required) if (def[key] === undefined) throw new Error(`Template is missing "${key}"`);
   const ratio = def.base.width / def.base.height;
   const exportSizes = (def.exportSizes ?? [{ width: def.base.width, height: def.base.height }]).map((s) => ({
@@ -42,46 +45,46 @@ export function defineTemplate(def) {
     defaults: {},
     validate: () => [],
     ...def,
-    exportSizes,
+    exportSizes: exportSizes as PosterTemplate<D>['exportSizes'],
   };
 }
 
-export function registerTemplate(tpl) {
+export function registerTemplate<D = any>(tpl: PosterTemplate<D>): PosterTemplate<D> {
   if (!registry.has(tpl.id)) registry.set(tpl.id, new Map());
-  registry.get(tpl.id).set(tpl.version, tpl);
+  registry.get(tpl.id)!.set(tpl.version, tpl);
   return tpl;
 }
 
 /** Latest version of a template, or a specific version if still registered. */
-export function getTemplate(id, version) {
+export function getTemplate(id: string, version?: number): PosterTemplate | null {
   const versions = registry.get(id);
   if (!versions) return null;
-  if (version !== undefined && versions.has(version)) return versions.get(version);
-  return versions.get(Math.max(...versions.keys()));
+  if (version !== undefined && versions.has(version)) return versions.get(version)!;
+  return versions.get(Math.max(...versions.keys())) ?? null;
 }
 
-export const hasExactVersion = (id, version) => !!registry.get(id)?.has(version);
+export const hasExactVersion = (id: string, version: number): boolean => !!registry.get(id)?.has(version);
 
 /** Latest versions of all templates, in registration order. */
-export function listTemplates() {
-  return [...registry.values()].map((versions) => versions.get(Math.max(...versions.keys()))).sort((a, b) => (a.order ?? 100) - (b.order ?? 100));
+export function listTemplates(): PosterTemplate[] {
+  return [...registry.values()].map((versions) => versions.get(Math.max(...versions.keys()))!).sort((a, b) => (a.order ?? 100) - (b.order ?? 100));
 }
 
 /** Full default style for a template. */
-export function defaultStyle(tpl) {
-  return deepMerge(BASE_STYLE, tpl.defaults ?? {});
+export function defaultStyle(tpl: Pick<PosterTemplate, 'defaults'>): PosterStyle {
+  return deepMerge<PosterStyle>(BASE_STYLE, tpl.defaults ?? {});
 }
 
 /** Fill missing keys of a stored style with current defaults (forward-compatible). */
-export function normalizeStyle(tpl, style) {
-  return deepMerge(defaultStyle(tpl), style ?? {});
+export function normalizeStyle(tpl: Pick<PosterTemplate, 'defaults'>, style: unknown): PosterStyle {
+  return deepMerge<PosterStyle>(defaultStyle(tpl), style ?? {});
 }
 
-export function defaultTexts(tpl) {
+export function defaultTexts(tpl: Pick<PosterTemplate, 'texts'>): Record<string, string> {
   return Object.fromEntries((tpl.texts ?? []).map((t) => [t.key, t.default ?? '']));
 }
 
-export const TEMPLATE_TYPES = {
+export const TEMPLATE_TYPES: Record<string, string> = {
   announcement: 'Анонс',
   matchday: 'Игровой день',
   win: 'Победа',

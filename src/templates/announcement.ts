@@ -4,11 +4,13 @@
  * Evolved from the original prototype poster (v0, 1280 px) into the shared system.
  */
 import { h } from '../core/dom';
-import { defineTemplate } from './registry.js';
-import { commonSettings, ELEMENTS } from './shared/settings.js';
-import { baseLayers, playerLayer, posterRoot, teamLogo, fitText, socialsBlock, handleBlock, dateLine, perspectiveTeams, displayName } from './shared/primitives.js';
+import { defineTemplate } from './registry';
+import { commonSettings, ELEMENTS } from './shared/settings';
+import { baseLayers, playerLayer, posterRoot, teamLogo, fitText, socialsBlock, handleBlock, dateLine, perspectiveTeams, displayName } from './shared/primitives';
+import type { MatchPosterData } from '../types';
+import type { PosterIssue, RenderContext } from './types';
 
-export default defineTemplate({
+export default defineTemplate<MatchPosterData>({
   id: 'match-announcement',
   type: 'announcement',
   version: 1,
@@ -44,7 +46,7 @@ export default defineTemplate({
     { key: 'useShortNames', type: 'toggle', label: 'Короткое название соперника', group: 'layout' },
   ],
   validate(data) {
-    const out = [];
+    const out: PosterIssue[] = [];
     if (!data.teamA?.name || !data.teamB?.name) out.push({ level: 'error', message: 'Нужны обе команды' });
     if (!data.startDate && !data.startTime) out.push({ level: 'warning', message: 'У матча не указаны дата и время' });
     if (data.status === 'completed') out.push({ level: 'warning', message: 'Матч уже завершён — возможно, нужен шаблон WIN, LOSE или Series Result' });
@@ -121,16 +123,16 @@ export default defineTemplate({
   },
 });
 
-function tournamentLineOnly(ctx) {
+function tournamentLineOnly(ctx: RenderContext<MatchPosterData>): string {
   return ctx.style.show.tournament ? ctx.data.tournament : '';
 }
 
 /** Thin × mark from the original prototype. */
-function crossMark(size, color) {
+function crossMark(size: number, color: string): SVGSVGElement {
   const el = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   el.setAttribute('viewBox', '0 0 76 76');
-  el.setAttribute('width', size);
-  el.setAttribute('height', size);
+  el.setAttribute('width', String(size));
+  el.setAttribute('height', String(size));
   el.style.flexShrink = '0';
   const p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
   p.setAttribute('d', 'M76 2.84082L40.8408 38L76 73.1592L73.1592 76L38 40.8408L2.84082 76L0 73.1592L35.1592 38L0 2.84082L2.84082 0L38 35.1592L73.1592 0L76 2.84082Z');

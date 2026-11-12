@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { createStore } from '../../src/editor/store.js';
+import { createStore } from '../../src/editor/store';
 import { collectAssetRefs } from '../../src/core/assets';
 import { buildMatchData, snapshotTeam } from '../../src/domain/snapshot';
 import { deepMerge, setPath, matchesQuery, slugify } from '../../src/core/utils';

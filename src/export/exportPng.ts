@@ -8,19 +8,20 @@
  * so layout never differs between preview and export sizes.
  */
 import { toBlob } from 'html-to-image';
-import { renderPoster } from '../render/renderPoster.js';
-import { fontEmbedCss } from './fontEmbed.js';
+import { renderPoster } from '../render/renderPoster';
+import { fontEmbedCss } from './fontEmbed';
 import { slugify } from '../core/utils';
+import type { PosterTemplate, PosterIssue, Size } from '../templates/types';
 
 export class ExportError extends Error {
-  constructor(message, cause) {
+  constructor(message: string, cause?: unknown) {
     super(message);
     this.name = 'ExportError';
     this.cause = cause;
   }
 }
 
-function createHost(base) {
+function createHost(base: Size): HTMLDivElement {
   const host = document.createElement('div');
   host.setAttribute('aria-hidden', 'true');
   host.dataset.exportHost = 'true';
@@ -29,7 +30,7 @@ function createHost(base) {
   return host;
 }
 
-async function pngSize(blob) {
+async function pngSize(blob: Blob): Promise<Size> {
   if (typeof createImageBitmap === 'function') {
     const bmp = await createImageBitmap(blob);
     const size = { width: bmp.width, height: bmp.height };
@@ -49,10 +50,8 @@ async function pngSize(blob) {
 
 /**
  * Render and rasterize a poster.
- * @param {{ template, data, style, size?: {width, height}, transparent?: boolean }} opts
- * @returns {Promise<{ blob: Blob, width: number, height: number, issues: any[] }>}
  */
-export async function renderPng({ template, data, style, size, transparent = false }) {
+export async function renderPng({ template, data, style, size, transparent = false }: { template: PosterTemplate; data: unknown; style: unknown; size?: Size; transparent?: boolean }): Promise<{ blob: Blob; width: number; height: number; issues: PosterIssue[] }> {
   const base = template.base;
   const target = size ?? template.exportSizes[0] ?? base;
   const ratio = target.width / base.width;
@@ -62,7 +61,7 @@ export async function renderPng({ template, data, style, size, transparent = fal
   try {
     const { el, issues, style: resolved } = await renderPoster(host, { template, data, style, mode: 'export' });
     if (issues.some((i) => i.level === 'error')) {
-      throw new ExportError(issues.find((i) => i.level === 'error').message);
+      throw new ExportError(issues.find((i) => i.level === 'error')!.message);
     }
     el.querySelectorAll('[data-overflow]').forEach((n) => n.removeAttribute('data-overflow'));
     if (transparent) el.style.background = 'transparent';
@@ -84,7 +83,7 @@ export async function renderPng({ template, data, style, size, transparent = fal
       cacheBust: false,
       style: { transform: 'none', margin: '0', left: '0', top: '0' },
     };
-    let blob;
+    let blob: Blob | null;
     try {
       // Rasterize twice: the first pass warms decoded images inside the SVG foreignObject
       // (required by WebKit/Firefox to avoid blank images); the second is the result.
@@ -104,7 +103,7 @@ export async function renderPng({ template, data, style, size, transparent = fal
   }
 }
 
-export function downloadBlob(blob, fileName) {
+export function downloadBlob(blob: Blob, fileName: string): void {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
@@ -115,6 +114,6 @@ export function downloadBlob(blob, fileName) {
   setTimeout(() => URL.revokeObjectURL(url), 4000);
 }
 
-export function exportFileName(title, templateId, size) {
+export function exportFileName(title: string | null | undefined, templateId: string, size: Size): string {
   return `${slugify(title || templateId)}-${size.width}x${size.height}.png`;
 }

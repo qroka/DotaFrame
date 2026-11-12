@@ -7,11 +7,12 @@
  * so what the user sees is what gets exported.
  */
 import { collectAssetRefs } from '../core/assets';
-import { getFont } from '../templates/shared/fonts.js';
-import { normalizeStyle } from '../templates/registry.js';
+import { getFont } from '../templates/shared/fonts';
+import { normalizeStyle } from '../templates/registry';
+import type { PosterIssue, PosterStyle, PosterTemplate, RenderContext } from '../templates/types';
 
 /** Ensure fonts used by the style are loaded (with Cyrillic + Latin glyphs). */
-export async function loadPosterFonts(style) {
+export async function loadPosterFonts(style: Pick<PosterStyle, 'font' | 'bodyFont'>): Promise<void> {
   if (typeof document === 'undefined' || !document.fonts) return;
   const sample = 'MATCH WIN LOSE 0123456789 Матч Победа ЁЖЩ';
   const confs = [style.font, style.bodyFont, { family: 'roboto-flex', weight: 700 }];
@@ -24,14 +25,14 @@ export async function loadPosterFonts(style) {
   await document.fonts.ready;
 }
 
-async function waitImages(el) {
+async function waitImages(el: HTMLElement): Promise<number> {
   const imgs = [...el.querySelectorAll('img')];
-  const failed = [];
+  const failed: HTMLImageElement[] = [];
   await Promise.all(
     imgs.map(async (img) => {
       if (!img.getAttribute('src')) return;
       try {
-        if (!img.complete) await new Promise((res, rej) => ((img.onload = res), (img.onerror = rej)));
+        if (!img.complete) await new Promise<void>((res, rej) => ((img.onload = () => res()), (img.onerror = rej)));
         await img.decode();
       } catch {
         failed.push(img);
@@ -44,25 +45,25 @@ async function waitImages(el) {
 
 // Single-line ('x') boxes only check width: with `text-box-trim` the box is trimmed to cap
 // height, so glyph ascenders/descenders always exceed clientHeight by design.
-const overflows = (el, tol = 1.5) => el.scrollWidth > el.clientWidth + tol || (el.dataset.fit === 'box' && el.scrollHeight > el.clientHeight + tol);
+const overflows = (el: HTMLElement, tol = 1.5): boolean => el.scrollWidth > el.clientWidth + tol || (el.dataset.fit === 'box' && el.scrollHeight > el.clientHeight + tol);
 
 /**
  * Shrink each [data-fit] element's font-size until it fits (binary search down to data-fit-min).
  * Returns labels of elements that still overflow at the minimum size.
  */
-export function fitAll(root) {
-  const stillOverflowing = [];
-  for (const el of root.querySelectorAll('[data-fit]')) {
+export function fitAll(root: ParentNode): string[] {
+  const stillOverflowing: string[] = [];
+  for (const el of root.querySelectorAll<HTMLElement>('[data-fit]')) {
     el.removeAttribute('data-overflow');
     const max = parseFloat(el.style.fontSize) || 48;
-    const min = Math.min(max, parseFloat(el.dataset.fitMin) || max * 0.5);
+    const min = Math.min(max, parseFloat(el.dataset.fitMin ?? '') || max * 0.5);
     if (!overflows(el)) continue;
     let lo = min;
     let hi = max;
     el.style.fontSize = `${lo}px`;
     if (overflows(el)) {
       el.dataset.overflow = 'true';
-      stillOverflowing.push(el.dataset.fitLabel || el.textContent.slice(0, 40));
+      stillOverflowing.push(el.dataset.fitLabel || (el.textContent ?? '').slice(0, 40));
       continue;
     }
     for (let i = 0; i < 8; i++) {
@@ -78,17 +79,16 @@ export function fitAll(root) {
 
 /**
  * Render a poster into `host`.
- * @returns {Promise<{ el: HTMLElement, issues: Array<{level, message}> }>}
  */
-export async function renderPoster(host, { template, data, style: rawStyle, mode = 'preview' }) {
+export async function renderPoster(host: HTMLElement, { template, data, style: rawStyle, mode = 'preview' }: { template: PosterTemplate; data: unknown; style: unknown; mode?: 'preview' | 'export' }): Promise<{ el: HTMLElement; issues: PosterIssue[]; style: PosterStyle }> {
   const style = normalizeStyle(template, rawStyle);
   const ids = [...collectAssetRefs({ data, style })];
   const urls = Object.fromEntries(ids.map((id) => [id, `/api/media/${encodeURIComponent(id)}`]));
-  const issues = [];
+  const issues: PosterIssue[] = [];
   const missing = ids.filter((id) => !urls[id]);
   if (missing.length) issues.push({ level: 'warning', message: `Не найдено изображений: ${missing.length}. Вместо них показаны заглушки.` });
 
-  const ctx = {
+  const ctx: RenderContext = {
     template,
     data,
     style,
@@ -97,7 +97,7 @@ export async function renderPoster(host, { template, data, style: rawStyle, mode
     url: (id) => (id ? (urls[id] ?? null) : null),
   };
 
-  let el;
+  let el: HTMLElement;
   try {
     el = template.render(ctx);
   } catch (err) {
@@ -106,7 +106,7 @@ export async function renderPoster(host, { template, data, style: rawStyle, mode
     el.className = 'df-poster';
     el.style.cssText = `width:${template.base.width}px;height:${template.base.height}px;display:grid;place-items:center;color:#fff;font:600 40px sans-serif;background:#2a0b0b`;
     el.textContent = 'Ошибка рендеринга шаблона';
-    issues.push({ level: 'error', message: `Ошибка рендеринга: ${err.message}` });
+    issues.push({ level: 'error', message: `Ошибка рендеринга: ${(err as Error).message}` });
   }
 
   await loadPosterFonts(style);
@@ -120,7 +120,7 @@ export async function renderPoster(host, { template, data, style: rawStyle, mode
   try {
     for (const issue of template.validate(data, style) ?? []) issues.push(issue);
   } catch (err) {
-    issues.push({ level: 'warning', message: `Проверка шаблона не выполнена: ${err.message}` });
+    issues.push({ level: 'warning', message: `Проверка шаблона не выполнена: ${(err as Error).message}` });
   }
   return { el, issues, style };
 }

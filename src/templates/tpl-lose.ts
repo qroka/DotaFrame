@@ -1,5 +1,5 @@
 /** LOSE — same visual system as WIN, mirrored, cooler desaturated treatment by default. */
-import { createOutcomeTemplate } from './shared/result.js';
+import { createOutcomeTemplate } from './shared/result';
 
 export default createOutcomeTemplate({
   id: 'lose',

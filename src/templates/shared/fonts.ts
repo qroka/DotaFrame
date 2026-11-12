@@ -8,7 +8,19 @@ import '@fontsource-variable/oswald/index.css';
 import '@fontsource-variable/unbounded/index.css';
 import '@fontsource-variable/inter/index.css';
 
-export const POSTER_FONTS = {
+export interface PosterFont {
+  id: string;
+  label: string;
+  family: string;
+  cssFamily: string;
+  weight: [number, number];
+  width: [number, number] | null;
+  nativeSlant: boolean;
+}
+
+type FontSettings = Partial<{ family: string; weight: number; slant: number; width: number }>;
+
+export const POSTER_FONTS: Record<string, PosterFont> = {
   'roboto-flex': {
     id: 'roboto-flex',
     label: 'Roboto Flex',
@@ -49,18 +61,18 @@ export const POSTER_FONTS = {
 
 export const FONT_OPTIONS = Object.values(POSTER_FONTS).map((f) => ({ value: f.id, label: f.label }));
 
-export const getFont = (id) => POSTER_FONTS[id] ?? POSTER_FONTS['roboto-flex'];
+export const getFont = (id: string | null | undefined): PosterFont => POSTER_FONTS[id ?? ''] ?? POSTER_FONTS['roboto-flex']!;
 
 /**
  * CSS declarations for a typographic setting.
- * @param {{family:string, weight:number, slant:number, width:number}} font  slant: 0…-15 (degrees, negative = forward)
+ * `font.slant`: 0…-15 (degrees, negative = forward).
  */
-export function fontStyle(font = {}, { weight, slant, width } = {}) {
+export function fontStyle(font: FontSettings = {}, { weight, slant, width }: { weight?: number; slant?: number; width?: number } = {}): Record<string, string> {
   const f = getFont(font.family);
   const w = clampTo(weight ?? font.weight ?? 700, f.weight);
   const sl = Math.max(-15, Math.min(0, slant ?? font.slant ?? 0));
   const wd = f.width ? clampTo(width ?? font.width ?? 100, f.width) : 100;
-  const style = {
+  const style: Record<string, string> = {
     fontFamily: f.family,
     fontWeight: String(w),
   };
@@ -77,20 +89,20 @@ export function fontStyle(font = {}, { weight, slant, width } = {}) {
 }
 
 /** Extra skew needed beyond the font's native slant (applied to headline wrappers). */
-export function syntheticSkew(font = {}, slant) {
+export function syntheticSkew(font: FontSettings = {}, slant?: number): number {
   const f = getFont(font.family);
   const sl = Math.max(-15, Math.min(0, slant ?? font.slant ?? 0));
   const remaining = f.nativeSlant ? Math.min(0, sl + 10) : sl;
   return remaining; // degrees, ≤ 0
 }
 
-function clampTo(v, [min, max]) {
+function clampTo(v: unknown, [min, max]: [number, number]): number {
   return Math.max(min, Math.min(max, Number(v) || min));
 }
 
 /** Families + weights used by a style, for `document.fonts.load` before measuring/exporting. */
-export function fontLoadDescriptors(style) {
-  const fams = new Set(['roboto-flex']);
+export function fontLoadDescriptors(style: { font?: { family?: string }; bodyFont?: { family?: string } } | null | undefined): string[] {
+  const fams = new Set<string>(['roboto-flex']);
   if (style?.font?.family) fams.add(style.font.family);
   if (style?.bodyFont?.family) fams.add(style.bodyFont.family);
   return [...fams].map((id) => getFont(id).cssFamily);

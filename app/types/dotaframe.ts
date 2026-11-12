@@ -59,6 +59,9 @@ export interface PosterProject {
   dedupeKey?: string | null; source?: Record<string, any> | null
 }
 
+/** Gallery row: a project without its heavy `data` / `style` / `source` payload. */
+export type ProjectSummary = Omit<PosterProject, 'data' | 'style' | 'source' | 'dedupeKey'>
+
 export type ExternalMatchStatus = 'scheduled' | 'live' | 'completed' | 'cancelled'
 export interface ExternalTeam { externalId: string; name: string; shortName: string | null; logoUrl: string | null }
 export interface ExternalTeamDetails extends ExternalTeam { location: string | null; localTeamId: string | null }
@@ -95,11 +98,5 @@ export interface PublicationPackage {
   source: { provider: 'pandascore', externalId: string, syncedAt: string }
   items: PublicationPackageItem[]
 }
-export interface PosterTemplate {
-  id: string; type: string; version: number; name: string; description: string
-  source: 'match' | 'matches' | 'draft'; base: { width: number, height: number }
-  exportSizes: Array<{ id: string, label: string, width: number, height: number }>
-  texts: Array<{ key: string, label: string, default?: string, maxLength?: number }>
-  settings: Array<Record<string, any>>; render: (context: any) => HTMLElement
-  validate: (data: any, style: any) => Array<{ level: 'error' | 'warning', message: string }>
-}
+/** Defined next to the render code in src/, which is the single source of truth. */
+export type { PosterTemplate } from '../../src/templates/types'

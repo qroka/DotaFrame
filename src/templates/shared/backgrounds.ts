@@ -9,9 +9,9 @@
  * (An SVG feTurbulence filter looks the same in preview but renders as a solid
  * black rect inside html-to-image's foreignObject, so PNG is used instead.)
  */
-const grainCache = new Map();
-const grain = (opacity = 0.18) => {
-  if (grainCache.has(opacity)) return grainCache.get(opacity);
+const grainCache = new Map<number, string>();
+const grain = (opacity = 0.18): string => {
+  if (grainCache.has(opacity)) return grainCache.get(opacity)!;
   if (typeof document === 'undefined') return 'none';
   const size = 160;
   const canvas = document.createElement('canvas');
@@ -34,10 +34,17 @@ const grain = (opacity = 0.18) => {
   return css;
 };
 
-const lines = (color = 'rgba(255,255,255,0.05)', gap = 18) =>
+const lines = (color = 'rgba(255,255,255,0.05)', gap = 18): string =>
   `repeating-linear-gradient(115deg, ${color} 0 2px, transparent 2px ${gap}px)`;
 
-export const BACKGROUND_PRESETS = {
+export interface BackgroundPreset {
+  id: string;
+  label: string;
+  swatch: string;
+  css: (accent: string, solid?: string) => string;
+}
+
+export const BACKGROUND_PRESETS: Record<string, BackgroundPreset> = {
   ember: {
     id: 'ember',
     label: 'Ember',
@@ -126,13 +133,13 @@ export const BACKGROUND_PRESETS = {
     id: 'solid',
     label: 'Сплошной',
     swatch: '#111',
-    css: (_accent, solid = '#0b0b0d') => solid,
+    css: (_accent: string, solid = '#0b0b0d') => solid,
   },
 };
 
 export const BACKGROUND_OPTIONS = Object.values(BACKGROUND_PRESETS).map((b) => ({ value: b.id, label: b.label, swatch: b.swatch }));
 
-export function backgroundCss(presetId, accent = '#e5322d', solid) {
-  const preset = BACKGROUND_PRESETS[presetId] ?? BACKGROUND_PRESETS.midnight;
+export function backgroundCss(presetId: string, accent = '#e5322d', solid?: string): string {
+  const preset = BACKGROUND_PRESETS[presetId] ?? BACKGROUND_PRESETS.midnight!;
   return preset.css(accent, solid);
 }

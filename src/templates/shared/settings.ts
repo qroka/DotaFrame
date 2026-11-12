@@ -9,11 +9,12 @@
  *               options?, when?: (style) => boolean, hint?, kind? (media kind for images) }
  * Types: color | range | select | segmented | toggle | text | image | font | background
  */
-import { FONT_OPTIONS } from './fonts.js';
-import { BACKGROUND_OPTIONS } from './backgrounds.js';
+import { FONT_OPTIONS } from './fonts';
+import { BACKGROUND_OPTIONS } from './backgrounds';
 import { DATE_STYLES } from '../../domain/time';
+import type { BaseStyle, PosterStyle, SettingDescriptor } from '../types';
 
-export const GROUPS = {
+export const GROUPS: Record<string, string> = {
   theme: 'Тема',
   background: 'Фон',
   player: 'Игрок / персонаж',
@@ -24,7 +25,17 @@ export const GROUPS = {
   socials: 'Подписи и соцсети',
 };
 
-export const THEMES = {
+export interface Theme {
+  id: string;
+  label: string;
+  accent: string;
+  text: string;
+  background: { preset: string };
+  overlay: { color: string; opacity: number };
+  gradient: { color: string; opacity: number };
+}
+
+export const THEMES: Record<string, Theme> = {
   ember: { id: 'ember', label: 'Ember', accent: '#ff4b3e', text: '#ffffff', background: { preset: 'ember' }, overlay: { color: '#000000', opacity: 25 }, gradient: { color: '#0b0303', opacity: 75 } },
   midnight: { id: 'midnight', label: 'Midnight', accent: '#4f7cff', text: '#ffffff', background: { preset: 'midnight' }, overlay: { color: '#000000', opacity: 20 }, gradient: { color: '#03040a', opacity: 75 } },
   radiant: { id: 'radiant', label: 'Radiant', accent: '#3ddc84', text: '#f3fff8', background: { preset: 'radiant' }, overlay: { color: '#000000', opacity: 20 }, gradient: { color: '#020805', opacity: 75 } },
@@ -37,10 +48,10 @@ export const THEMES = {
 export const THEME_OPTIONS = Object.values(THEMES).map((t) => ({ value: t.id, label: t.label, swatch: t.accent }));
 
 /** Defaults shared by every template. Templates override/extend in `defaults`. */
-export const BASE_STYLE = {
+export const BASE_STYLE: BaseStyle = {
   theme: 'ember',
-  accent: THEMES.ember.accent,
-  text: THEMES.ember.text,
+  accent: THEMES.ember!.accent,
+  text: THEMES.ember!.text,
   font: { family: 'roboto-flex', weight: 900, slant: -10, width: 100 },
   bodyFont: { family: 'roboto-flex', weight: 500, slant: -10, width: 100 },
   uppercase: true,
@@ -54,7 +65,7 @@ export const BASE_STYLE = {
 };
 
 /** Apply a theme preset onto a style (keeps user images and layout settings). */
-export function applyTheme(style, themeId) {
+export function applyTheme<S extends Record<string, any>>(style: S, themeId: string): S {
   const t = THEMES[themeId];
   if (!t) return style;
   return {
@@ -68,14 +79,22 @@ export function applyTheme(style, themeId) {
   };
 }
 
-const range = (key, label, group, min, max, step = 1, extra = {}) => ({ key, type: 'range', label, group, min, max, step, ...extra });
+const range = (key: string, label: string, group: string, min: number, max: number, step = 1, extra: Partial<SettingDescriptor> = {}): SettingDescriptor => ({ key, type: 'range', label, group, min, max, step, ...extra });
+
+export interface CommonSettingsOptions {
+  player?: boolean;
+  socials?: boolean;
+  gradient?: boolean;
+  dateStyle?: boolean;
+  elements?: Array<{ key: string; label: string }>;
+}
 
 /**
  * Common descriptors. Options let a template opt out of groups it doesn't render.
  */
-export function commonSettings(opts = {}) {
+export function commonSettings(opts: CommonSettingsOptions = {}): SettingDescriptor[] {
   const o = { player: true, socials: true, gradient: true, dateStyle: true, elements: [], ...opts };
-  const out = [
+  const out: SettingDescriptor[] = [
     { key: 'theme', type: 'theme', label: 'Готовая тема', group: 'theme', options: THEME_OPTIONS },
     { key: 'accent', type: 'color', label: 'Акцентный цвет', group: 'colors' },
     { key: 'text', type: 'color', label: 'Цвет текста', group: 'colors' },
@@ -146,4 +165,4 @@ export const ELEMENTS = {
   timezone: { key: 'timezone', label: 'Часовой пояс' },
   logos: { key: 'logos', label: 'Логотипы' },
   names: { key: 'names', label: 'Названия команд' },
-};
+} satisfies Record<string, { key: string; label: string }>;

@@ -4,18 +4,20 @@
  */
 import { h } from '../core/dom';
 import { heroPortraitUrl } from '../data/heroes';
-import { defineTemplate } from './registry.js';
-import { commonSettings, ELEMENTS } from './shared/settings.js';
-import { baseLayers, posterRoot, teamLogo, fitText, handleBlock, formatLong, displayName } from './shared/primitives.js';
-import { heroTile } from './shared/heroes.js';
+import { defineTemplate } from './registry';
+import { commonSettings, ELEMENTS } from './shared/settings';
+import { baseLayers, posterRoot, teamLogo, fitText, handleBlock, formatLong, displayName } from './shared/primitives';
+import { heroTile } from './shared/heroes';
+import type { DraftPosterData, HeroSnapshot, TeamSnapshot } from '../types';
+import type { PosterIssue } from './types';
 
 export const MAX_BANS = 10;
 
-export function draftHeroes(data) {
+export function draftHeroes(data: Pick<DraftPosterData, 'picksRadiant' | 'picksDire' | 'bansRadiant' | 'bansDire'>): Array<HeroSnapshot | null> {
   return [...(data.picksRadiant ?? []), ...(data.picksDire ?? []), ...(data.bansRadiant ?? []), ...(data.bansDire ?? [])];
 }
 
-export default defineTemplate({
+export default defineTemplate<DraftPosterData>({
   id: 'draft',
   type: 'draft',
   version: 1,
@@ -53,19 +55,19 @@ export default defineTemplate({
     { key: 'useShortNames', type: 'toggle', label: 'Короткие названия команд', group: 'layout' },
   ],
   validate(data) {
-    const out = [];
+    const out: PosterIssue[] = [];
     if (!data.radiant?.name || !data.dire?.name) out.push({ level: 'error', message: 'Назначьте команды Radiant и Dire' });
     if (data.radiant?.teamId && data.radiant.teamId === data.dire?.teamId) out.push({ level: 'error', message: 'Radiant и Dire должны быть разными командами' });
     const picks = [...(data.picksRadiant ?? []), ...(data.picksDire ?? [])];
     if ((data.picksRadiant ?? []).length !== 5 || (data.picksDire ?? []).length !== 5 || picks.some((p) => !p)) out.push({ level: 'error', message: 'Нужно выбрать по 5 героев каждой команде' });
     if ((data.bansRadiant ?? []).length > MAX_BANS || (data.bansDire ?? []).length > MAX_BANS) out.push({ level: 'error', message: `Не больше ${MAX_BANS} банов у каждой команды` });
-    const ids = draftHeroes(data).filter(Boolean).map((x) => x.heroId);
+    const ids = draftHeroes(data).filter((x): x is HeroSnapshot => !!x).map((x) => x.heroId);
     const dup = ids.filter((id, i) => ids.indexOf(id) !== i);
     if (dup.length) {
       const names = [...new Set(dup)].map((id) => draftHeroes(data).find((x) => x?.heroId === id)?.name ?? id);
       out.push({ level: 'error', message: `Герой выбран несколько раз: ${names.join(', ')}` });
     }
-    const heroes = draftHeroes(data).filter(Boolean);
+    const heroes = draftHeroes(data).filter((x): x is HeroSnapshot => !!x);
     const noPortrait = heroes.filter((x) => !x.portraitAssetId && !heroPortraitUrl(x)).length;
     if (heroes.length && noPortrait) out.push({ level: 'warning', message: `Нет портретов для ${noPortrait} из ${heroes.length} героев — показаны заглушки. Загрузите набор портретов в «Данные и настройки».` });
     return out;
@@ -91,12 +93,12 @@ export default defineTemplate({
         meta.map((line) => fitText(line, { ctx, size: 27, min: 12, width: 266, weight: 400, align: 'right', label: 'Турнир', className: 'df-trim' })),
       ),
     );
-    header.querySelectorAll('.df-fit')[1].style.color = style.accent;
+    header.querySelectorAll<HTMLElement>('.df-fit')[1]!.style.color = style.accent;
 
     const pickW = W / 5;
     const pickH = style.showBans ? 110 : 180;
 
-    const section = (side, team, picks, bans) => {
+    const section = (side: 'radiant' | 'dire', team: TeamSnapshot, picks: Array<HeroSnapshot | null> | undefined, bans: HeroSnapshot[] | undefined) => {
       const bar = h(
         'div',
         { style: { display: 'flex', alignItems: 'center', gap: '10px', height: '54px' } },
@@ -125,7 +127,7 @@ export default defineTemplate({
           'div',
           { style: { display: 'flex', alignItems: 'center', height: '79px' } },
           n
-            ? h('div', { style: { display: 'flex', gap: `${gap}px` } }, bans.slice(0, MAX_BANS).map((b) => {
+            ? h('div', { style: { display: 'flex', gap: `${gap}px` } }, (bans ?? []).slice(0, MAX_BANS).map((b) => {
                 const tile = heroTile(ctx, b, { width: bw, height: 79, banned: true, radius: 0 });
                 tile.style.boxShadow = 'inset 0 0 0 1px rgba(255,255,255,.58)';
                 return tile;
@@ -152,7 +154,7 @@ export default defineTemplate({
         ? fitText([style.socials.line1, style.socials.line2].filter((l) => l?.trim()).join('   ·   '), { ctx, size: 27, min: 12, width: 620, align: 'right', label: 'Соцсети' })
         : h('div'),
     );
-    footer.lastChild.style.textTransform = 'lowercase';
+    (footer.lastChild as HTMLElement).style.textTransform = 'lowercase';
 
     return posterRoot(ctx, 'tpl-draft', ...baseLayers(ctx), h('div', { class: 'df-content' }, header, body, footer));
   },

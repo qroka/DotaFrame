@@ -60,7 +60,7 @@ async function applyPackage(next: PublicationPackage) {
 async function loadPreviews() {
   try {
     const list = await api.matches.getPackagePreviews(matchId, pkg.value?.trackedTeamId)
-    const { getTemplate } = await import('~~/src/templates/index.js')
+    const { getTemplate } = await import('~~/src/templates/index')
     const nextTemplates = new Map(templates.value)
     for (const preview of list) {
       const key = templateKey(preview)
@@ -110,7 +110,7 @@ async function createAllReady() {
 async function exportProject(projectId: string) {
   const project = await api.projects.get(projectId)
   const [{ getTemplate }, { renderPng, downloadBlob, exportFileName }] = await Promise.all([
-    import('~~/src/templates/index.js'), import('~~/src/export/exportPng.js')
+    import('~~/src/templates/index'), import('~~/src/export/exportPng')
   ])
   const template = getTemplate(project.templateId, project.templateVersion)
   if (!template) throw new Error('Версия шаблона недоступна')

@@ -27,12 +27,6 @@ export default defineNuxtConfig({
     // Local icons, e.g. i-df-no-logo (team without a logo); files live in app/assets/icons.
     customCollections: [{ prefix: 'df', dir: './app/assets/icons' }]
   },
-  nitro: {
-    externals: { inline: [/\/src\//] }
-  },
-  typescript: {
-    typeCheck: false,
-    tsConfig: { compilerOptions: { allowJs: true, checkJs: false } }
-  },
+  typescript: { typeCheck: false },
   vite: { optimizeDeps: { include: ['html-to-image'] } }
 })

@@ -8,7 +8,7 @@ const storage = shallowRef<{ engine: string, file: string, bytes: number } | nul
 const restoring = shallowRef(false)
 onMounted(async () => { storage.value = await $fetch('/api/system').catch(() => null) })
 async function downloadBackup() {
-  const { downloadBlob } = await import('~~/src/export/exportPng.js')
+  const { downloadBlob } = await import('~~/src/export/exportPng')
   const backup = await $fetch('/api/backup')
   downloadBlob(new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' }), `dotaframe-backup-${new Date().toISOString().slice(0, 10)}.json`)
   toast.add({ title: 'Резервная копия создана', color: 'success' })

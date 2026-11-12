@@ -9,7 +9,7 @@ const templates = shallowRef<PosterTemplate[]>([])
 const loading = shallowRef(true)
 const typeLabels: Record<string, string> = { announcement: 'Анонс', matchday: 'Игровой день', win: 'Победа', lose: 'Поражение', 'series-result': 'Результат', draft: 'Драфт' }
 onMounted(async () => {
-  const { listTemplates } = await import('~~/src/templates/index.js')
+  const { listTemplates } = await import('~~/src/templates/index')
   templates.value = listTemplates()
   loading.value = false
 })

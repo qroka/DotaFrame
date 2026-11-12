@@ -12,23 +12,23 @@ import unboundedCss from '@fontsource-variable/unbounded/index.css?raw';
 import interCss from '@fontsource-variable/inter/index.css?raw';
 import { blobToDataUrl } from '../core/assets';
 
-const FILES = {
+const FILES: Record<string, string> = {
   ...import.meta.glob('/node_modules/@fontsource-variable/roboto-flex/files/roboto-flex-{latin,latin-ext,cyrillic,cyrillic-ext}-full-normal.woff2', { query: '?url', import: 'default', eager: true }),
   ...import.meta.glob('/node_modules/@fontsource-variable/{oswald,unbounded,inter}/files/*-{latin,latin-ext,cyrillic,cyrillic-ext}-wght-normal.woff2', { query: '?url', import: 'default', eager: true }),
 };
 
-const CSS = { 'roboto-flex': robotoCss, oswald: oswaldCss, unbounded: unboundedCss, inter: interCss };
+const CSS: Record<string, string> = { 'roboto-flex': robotoCss, oswald: oswaldCss, unbounded: unboundedCss, inter: interCss };
 
 /** file name → resolved URL */
-const urlByFile = Object.fromEntries(Object.entries(FILES).map(([path, url]) => [path.split('/').pop(), url]));
+const urlByFile: Record<string, string> = Object.fromEntries(Object.entries(FILES).map(([path, url]) => [path.split('/').pop()!, url]));
 
-const cache = new Map(); // fontId -> Promise<string css>
+const cache = new Map<string, Promise<string>>(); // fontId -> Promise<string css>
 
-async function buildFontCss(fontId) {
+async function buildFontCss(fontId: string): Promise<string> {
   const source = CSS[fontId];
   if (!source) return '';
   const blocks = source.match(/@font-face\s*{[^}]*}/g) ?? [];
-  const out = [];
+  const out: string[] = [];
   for (const block of blocks) {
     const file = /url\(\.\/files\/([^)]+)\)/.exec(block)?.[1];
     const url = file && urlByFile[file];
@@ -41,7 +41,7 @@ async function buildFontCss(fontId) {
   return out.join('\n');
 }
 
-export function fontEmbedCss(fontIds) {
+export function fontEmbedCss(fontIds: string[]): Promise<string> {
   const unique = [...new Set(fontIds)];
   return Promise.all(
     unique.map((id) => {
@@ -52,7 +52,7 @@ export function fontEmbedCss(fontIds) {
         });
         cache.set(id, p);
       }
-      return cache.get(id);
+      return cache.get(id)!;
     }),
   ).then((parts) => parts.join('\n'));
 }

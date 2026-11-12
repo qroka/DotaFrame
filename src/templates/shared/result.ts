@@ -3,13 +3,15 @@
  * one validation rule set, parametrised by the expected outcome.
  */
 import { h } from '../../core/dom';
-import { defineTemplate } from '../registry.js';
-import { commonSettings, ELEMENTS } from './settings.js';
-import { baseLayers, playerLayer, posterRoot, fitText, socialsBlock, handleBlock, dateLine, perspectiveTeams, displayName } from './primitives.js';
+import { defineTemplate } from '../registry';
+import type { MatchPosterData } from '../../types';
+import type { PosterIssue, PosterTemplate } from '../types';
+import { commonSettings, ELEMENTS } from './settings';
+import { baseLayers, playerLayer, posterRoot, fitText, socialsBlock, handleBlock, dateLine, perspectiveTeams, displayName } from './primitives';
 
 /** Validation shared by WIN and LOSE. `outcome`: 'win' | 'lose'. */
-export function validateOutcome(data, outcome) {
-  const out = [];
+export function validateOutcome(data: MatchPosterData, outcome: 'win' | 'lose'): PosterIssue[] {
+  const out: PosterIssue[] = [];
   if (!data.teamA?.name || !data.teamB?.name) {
     out.push({ level: 'error', message: 'Нужны обе команды' });
     return out;
@@ -30,8 +32,8 @@ export function validateOutcome(data, outcome) {
   return out;
 }
 
-export function createOutcomeTemplate({ id, type, order, word, name, description, defaults }) {
-  return defineTemplate({
+export function createOutcomeTemplate({ id, type, order, word, name, description, defaults }: { id: string; type: 'win' | 'lose'; order: number; word: string; name: string; description: string; defaults: Record<string, any> }): PosterTemplate<MatchPosterData> {
+  return defineTemplate<MatchPosterData>({
     id,
     type,
     version: 1,
@@ -78,7 +80,7 @@ export function createOutcomeTemplate({ id, type, order, word, name, description
         { style: { position: 'absolute', top: `${P}px`, right: `${P}px`, display: 'flex', flexDirection: 'column', alignItems: 'flex-end' } },
         socialsBlock(ctx, { size: 27, align: 'right' }),
       );
-      if (social.firstChild) social.firstChild.style.gap = '20px';
+      if (social.firstChild) (social.firstChild as HTMLElement).style.gap = '20px';
 
       // Bottom block: opponent caption → huge word + score on one baseline.
       const blockLeft = isLose ? 133 : 51;

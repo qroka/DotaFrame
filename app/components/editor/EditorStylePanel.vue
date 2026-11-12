@@ -1,6 +1,7 @@
 <!-- @level L2-Controller -->
 <script setup lang="ts">
 import type { PosterTemplate } from '~/types/dotaframe'
+import type { PosterStyle } from '~~/src/templates/types'
 import { api } from '~/services/api'
 
 const props = defineProps<{ template: PosterTemplate, style: Record<string, any> }>()
@@ -8,7 +9,7 @@ const emit = defineEmits<{ updateStyle: [style: Record<string, any>] }>()
 const toast = useToast()
 const groupLabels: Record<string, string> = { theme: 'Тема', colors: 'Цвета', background: 'Фон', player: 'Игрок / персонаж', typography: 'Типографика', layout: 'Композиция', elements: 'Элементы', socials: 'Подписи и соцсети' }
 const groups = computed(() => {
-  const visible = props.template.settings.filter(setting => !setting.when || setting.when(props.style))
+  const visible = props.template.settings.filter(setting => !setting.when || setting.when(props.style as PosterStyle))
   return Object.entries(Object.groupBy(visible, setting => setting.group || 'layout'))
 })
 function get(path: string): any { return path.split('.').reduce<any>((value, key) => value?.[key], props.style) }
@@ -21,7 +22,7 @@ function set(path: string, value: any) {
   emit('updateStyle', next)
 }
 async function setTheme(theme: string) {
-  const { applyTheme } = await import('~~/src/templates/shared/settings.js')
+  const { applyTheme } = await import('~~/src/templates/shared/settings')
   emit('updateStyle', applyTheme(props.style, theme))
 }
 async function upload(setting: Record<string, any>, event: Event) {
