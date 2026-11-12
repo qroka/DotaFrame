@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { createStore } from '../../src/editor/store.js';
 import { validateBackup, BACKUP_FORMAT } from '../../src/data/backup.js';
-import { collectAssetRefs } from '../../src/data/media.js';
+import { collectAssetRefs } from '../../src/core/assets.js';
 import { buildMatchData, snapshotTeam } from '../../src/domain/snapshot.js';
 import { deepMerge, setPath, matchesQuery, slugify } from '../../src/core/utils.js';
 import { formatPosterDate } from '../../src/domain/time.js';

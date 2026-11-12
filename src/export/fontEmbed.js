@@ -10,7 +10,7 @@ import robotoCss from '@fontsource-variable/roboto-flex/full.css?raw';
 import oswaldCss from '@fontsource-variable/oswald/index.css?raw';
 import unboundedCss from '@fontsource-variable/unbounded/index.css?raw';
 import interCss from '@fontsource-variable/inter/index.css?raw';
-import { blobToDataUrl } from '../data/media.js';
+import { blobToDataUrl } from '../core/assets.js';
 
 const FILES = {
   ...import.meta.glob('/node_modules/@fontsource-variable/roboto-flex/files/roboto-flex-{latin,latin-ext,cyrillic,cyrillic-ext}-full-normal.woff2', { query: '?url', import: 'default', eager: true }),
